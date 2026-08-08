@@ -4,6 +4,6 @@
     {
         public int Width { get; set; }
         public int Height { get; set; }
-        public byte[] Data { get; set; }
+        public required byte[] Data { get; set; }
     }
 }

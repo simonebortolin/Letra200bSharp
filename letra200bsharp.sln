@@ -1,13 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.11.35327.3
+# Visual Studio Version 18
+VisualStudioVersion = 18.8.12009.203
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "letra200bsharp.WinForms", "letra200bsharp.WinForms\letra200bsharp.WinForms.csproj", "{C6E94CB7-5D4F-4541-B728-A8F361CB45C8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Letra200bSharp.WinForms", "letra200bsharp.WinForms\Letra200bSharp.WinForms.csproj", "{C6E94CB7-5D4F-4541-B728-A8F361CB45C8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "letra200bsharp.Console", "letra200bsharp.Console\letra200bsharp.Console.csproj", "{466F3C9A-EF49-480A-9A1E-AC2971723E81}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Letra200bSharp.Console", "letra200bsharp.Console\Letra200bSharp.Console.csproj", "{466F3C9A-EF49-480A-9A1E-AC2971723E81}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "letra200bsharp", "letra200bsharp\letra200bsharp.csproj", "{94409E04-C02D-4274-823F-0E2DD0A87CC5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Letra200bSharp", "letra200bsharp\Letra200bSharp.csproj", "{94409E04-C02D-4274-823F-0E2DD0A87CC5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using InTheHand.Bluetooth;
 
 namespace letra200bsharp.Console
 {
@@ -11,41 +10,16 @@ namespace letra200bsharp.Console
 
             await parserResult.MapResult(async o =>
             {
-                var bluetoothDevice = await BluetoothDevice.FromIdAsync(o.Address);
-
-                if (bluetoothDevice != null)
+                try
                 {
-                    var services = await bluetoothDevice.Gatt.GetPrimaryServicesAsync();
-                    var uuid = services.FirstOrDefault(s => s.Uuid.ToString().Length == 36)?.Uuid;
-                    if (uuid.HasValue)
-                    {
-                        var serv = await bluetoothDevice.Gatt.GetPrimaryServiceAsync(uuid.Value);
-
-                        var characteristics = await serv.GetCharacteristicsAsync();
-
-                        if (characteristics != null && characteristics.Count > 0)
-                        {
-                            var imageBytes = await File.ReadAllBytesAsync(o.Image);
-                            var job = LetraHelper.CreateJob(imageBytes);
-
-                            foreach (var jobPart in job)
-                            {
-                                await characteristics[0].WriteValueWithoutResponseAsync(jobPart);
-                            }
-                        }
-                        else
-                        {
-                            System.Console.WriteLine("Error: Unable to determine device characteristics.");
-                        }
-                    }
-                    else
-                    {
-                        System.Console.WriteLine("Error: Unable to determine UUID.");
-                    }
+                    var imageBytes = await File.ReadAllBytesAsync(o.Image);
+                    var job = LetraHelper.CreateJob(imageBytes);
+                    var result = await LetraPrinter.PrintAsync(o.Address, job);
+                    System.Console.WriteLine(result.Printed ? $"Printed: {result.Message}" : $"Error: {result.Message}");
                 }
-                else
+                catch (Exception ex)
                 {
-                    System.Console.WriteLine("Error: Unable to connect to selected bluetooth device.");
+                    System.Console.WriteLine($"Error: {ex.Message}");
                 }
             }, errs =>
             {

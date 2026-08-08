@@ -1,11 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net472;net48;net481;net8.0</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows10.0.19041;net10.0-android;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp" Version="4.148.0" />
+    <PackageReference Include="InTheHand.BluetoothLE" Version="4.0.37" />
+    <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
+         Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
+    <PackageReference Include="Tmds.DBus" Version="0.92.0" Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
 
 </Project>

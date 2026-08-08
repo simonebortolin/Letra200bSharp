@@ -1,4 +1,4 @@
-namespace CetraSharp.WinFormsTest
+namespace Letra200bSharp.WinForms
 {
     internal static class Program
     {
