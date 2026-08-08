@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:letra200bsharp.Avalonia.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
+             x:Class="letra200bsharp.Avalonia.Views.ImageTabView"
+             x:DataType="vm:ImageTabViewModel">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="8">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Grid.Column="1" Text="{Binding ImagePath}" IsReadOnly="True" PlaceholderText="No file selected" />
+            <Button Grid.Column="2" Content="Browse..." Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
+        </Grid>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+            <CheckBox Content="Pre-rendered" IsChecked="{Binding PreRendered}" />
+            <CheckBox Content="No cut" Margin="16,0,0,0" IsChecked="{Binding NoCut}" IsEnabled="{Binding NoCutEnabled}" />
+        </StackPanel>
+
+        <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+             upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
+             stretched; only the (possibly long) length axis scrolls. -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Background="White" Margin="0,10,0,10" Height="200">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <Image Source="{Binding PreviewBitmap}" Stretch="None" VerticalAlignment="Center" Margin="4" />
+            </ScrollViewer>
+        </Border>
+
+        <Button Grid.Row="3" Content="Print" HorizontalAlignment="Center" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
+    </Grid>
+</UserControl>

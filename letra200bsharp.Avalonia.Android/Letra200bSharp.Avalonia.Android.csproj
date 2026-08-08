@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0-android</TargetFramework>
+		<SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+		<Nullable>enable</Nullable>
+		<ApplicationId>com.letra200bsharp.Avalonia</ApplicationId>
+		<ApplicationVersion>1</ApplicationVersion>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<!-- Without this, a plain "dotnet build" only bundles native libs for the last-used
+		     RID (x86_64, the emulator's architecture) - the APK then silently fails to
+		     install on real phones, which are virtually always arm64-v8a. Building both
+		     here produces one "fat" APK that installs on real devices and emulators alike. -->
+		<RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+	</PropertyGroup>
+	<ItemGroup>
+	  <None Remove="Icon.png" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\letra200bsharp.Avalonia\Letra200bSharp.Avalonia.csproj" />
+  </ItemGroup>
+</Project>
