@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\letra200bsharp.Avalonia\Letra200bSharp.Avalonia.csproj" />
+    <ProjectReference Include="..\Letra200bSharp.Avalonia\Letra200bSharp.Avalonia.csproj" />
   </ItemGroup>
 
   <ItemGroup>

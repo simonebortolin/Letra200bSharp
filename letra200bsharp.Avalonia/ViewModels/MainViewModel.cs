@@ -2,9 +2,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
-using letra200bsharp;
+using Letra200bSharp;
 
-namespace letra200bsharp.Avalonia.ViewModels;
+namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
@@ -22,21 +22,54 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsStatusError { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsStatusVisible { get; set; }
+
+    private static readonly TimeSpan StatusDisplayDuration = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan ErrorStatusDisplayDuration = TimeSpan.FromSeconds(7);
+
+    private CancellationTokenSource? _statusHideCts;
+
     public ImageTabViewModel Image { get; }
     public TextTabViewModel Text { get; }
+    public BarcodeTabViewModel Barcode { get; }
 
     public MainViewModel()
     {
         Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus);
         Text = new TextTabViewModel(() => SelectedDevice, ReportStatus);
+        Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus);
 
         _ = RefreshDevicesAsync();
     }
 
+    /// <summary>Shows <paramref name="message"/> as a toast, then hides it again on its own
+    /// after <see cref="StatusDisplayDuration"/> (or <see cref="ErrorStatusDisplayDuration"/>
+    /// for errors, since those are worth a little longer to read).</summary>
     private void ReportStatus(string message, bool isError)
     {
+        _statusHideCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _statusHideCts = cts;
+
         StatusMessage = message;
         IsStatusError = isError;
+        IsStatusVisible = true;
+
+        _ = HideStatusAfterDelayAsync(isError ? ErrorStatusDisplayDuration : StatusDisplayDuration, cts.Token);
+    }
+
+    private async Task HideStatusAfterDelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(delay, cancellationToken);
+            IsStatusVisible = false;
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer status message; that one owns hiding the toast now.
+        }
     }
 
     [RelayCommand]

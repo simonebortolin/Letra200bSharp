@@ -3,7 +3,7 @@ using Android.Runtime;
 using Avalonia;
 using Avalonia.Android;
 
-namespace letra200bsharp.Avalonia.Android
+namespace Letra200bSharp.Avalonia.Android
 {
     [Application]
     public class Application : AvaloniaAndroidApplication<App>

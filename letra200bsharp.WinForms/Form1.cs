@@ -1,5 +1,5 @@
 ﻿using InTheHand.Bluetooth;
-using letra200bsharp;
+using Letra200bSharp;
 using SkiaSharp;
 
 namespace Letra200bSharp.WinForms
@@ -20,6 +20,9 @@ namespace Letra200bSharp.WinForms
             SizeComboBox.SelectedIndexChanged += (_, _) => UpdateLine2Availability();
             StyleComboBox.SelectedIndexChanged += (_, _) => UpdateLine2Availability();
             UpdateLine2Availability();
+
+            SizeComboBox.SelectedIndexChanged += (_, _) => UpdateBoxStyleAvailability();
+            UpdateBoxStyleAvailability();
 
             PreRenderedCheckBox.CheckedChanged += (_, _) => UpdateImageNoCutAvailability();
             UpdateImageNoCutAvailability();
@@ -52,6 +55,23 @@ namespace Letra200bSharp.WinForms
             bool allowLine2 = GetSelectedTextStyle() != LetraHelper.TextStyle.Vertical && size != LetraHelper.LabelTextSize.L && size != LetraHelper.LabelTextSize.XL;
             TextLine2Label.Enabled = allowLine2;
             TextLine2TextBox.Enabled = allowLine2;
+        }
+
+        /// <summary>
+        /// XL fills the entire printable height with no margin around the text (see
+        /// <see cref="LetraHelper.LabelTextSize.XL"/>), so there's no room left to draw a
+        /// border without it overlapping the text or the printer's unprintable edges - keep
+        /// it disabled (and reset to None) for that size.
+        /// </summary>
+        private void UpdateBoxStyleAvailability()
+        {
+            bool allowBoxStyle = GetSelectedTextSize() != LetraHelper.LabelTextSize.XL;
+            BoxStyleLabel.Enabled = allowBoxStyle;
+            BoxStyleComboBox.Enabled = allowBoxStyle;
+            if (!allowBoxStyle)
+            {
+                BoxStyleComboBox.SelectedItem = "None";
+            }
         }
 
         private LetraHelper.TextStyle GetSelectedTextStyle()

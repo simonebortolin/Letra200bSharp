@@ -1,6 +1,6 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 
-namespace letra200bsharp.Avalonia.Views;
+namespace Letra200bSharp.Avalonia.Views;
 
 public partial class TextTabView : UserControl
 {

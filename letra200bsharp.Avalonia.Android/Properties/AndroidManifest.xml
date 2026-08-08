@@ -9,5 +9,5 @@
 	<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 	<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
-	<application android:label="letra200bsharp.Avalonia" android:icon="@drawable/Icon" />
+	<application android:label="Letra200bSharp.Avalonia" android:icon="@drawable/Icon" />
 </manifest>

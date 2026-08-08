@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\letra200bsharp\letra200bsharp.csproj" />
+    <ProjectReference Include="..\Letra200bSharp\Letra200bSharp.csproj" />
   </ItemGroup>
 
 </Project>

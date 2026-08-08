@@ -1,4 +1,4 @@
-﻿namespace letra200bsharp
+﻿namespace Letra200bSharp
 {
     internal class ImageInfo
     {

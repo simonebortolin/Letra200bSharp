@@ -1,10 +1,10 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using letra200bsharp.Avalonia.ViewModels;
-using letra200bsharp.Avalonia.Views;
+using Letra200bSharp.Avalonia.ViewModels;
+using Letra200bSharp.Avalonia.Views;
 
-namespace letra200bsharp.Avalonia;
+namespace Letra200bSharp.Avalonia;
 
 public partial class App : Application
 {

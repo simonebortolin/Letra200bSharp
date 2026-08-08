@@ -1,8 +1,8 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using letra200bsharp.Avalonia.ViewModels;
+using Letra200bSharp.Avalonia.ViewModels;
 
-namespace letra200bsharp.Avalonia.Views;
+namespace Letra200bSharp.Avalonia.Views;
 
 public partial class MainView : UserControl
 {

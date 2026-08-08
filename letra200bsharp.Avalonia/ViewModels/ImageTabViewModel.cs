@@ -1,10 +1,10 @@
-using Avalonia.Media.Imaging;
+﻿using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
-using letra200bsharp;
+using Letra200bSharp;
 
-namespace letra200bsharp.Avalonia.ViewModels;
+namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class ImageTabViewModel : ViewModelBase
 {

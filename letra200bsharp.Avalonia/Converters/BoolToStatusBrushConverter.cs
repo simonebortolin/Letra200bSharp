@@ -1,8 +1,8 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace letra200bsharp.Avalonia.Converters;
+namespace Letra200bSharp.Avalonia.Converters;
 
 /// <summary>Maps <c>IsStatusError</c> to a red/green brush for the status message.</summary>
 public class BoolToStatusBrushConverter : IValueConverter

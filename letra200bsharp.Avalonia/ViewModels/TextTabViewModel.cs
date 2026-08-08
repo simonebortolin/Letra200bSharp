@@ -3,10 +3,10 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
-using letra200bsharp;
+using Letra200bSharp;
 using SkiaSharp;
 
-namespace letra200bsharp.Avalonia.ViewModels;
+namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class TextTabViewModel : ViewModelBase
 {
@@ -31,6 +31,7 @@ public partial class TextTabViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Line2Enabled))]
     [NotifyPropertyChangedFor(nameof(Line1Label))]
+    [NotifyPropertyChangedFor(nameof(BoxStyleEnabled))]
     public partial string SelectedSize { get; set; } = "M";
 
     [ObservableProperty]
@@ -62,6 +63,13 @@ public partial class TextTabViewModel : ViewModelBase
     /// <summary>"Text:" on its own when there's only one line, "Text Line 1:" once a second line is available too.</summary>
     public string Line1Label => Line2Enabled ? "Text Line 1:" : "Text:";
 
+    /// <summary>
+    /// XL fills the entire printable height with no margin around the text (see
+    /// <see cref="LetraHelper.LabelTextSize.XL"/>), so there's no room left to draw a border
+    /// without it overlapping the text or the printer's unprintable edges.
+    /// </summary>
+    public bool BoxStyleEnabled => SelectedSize != "XL";
+
     public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus)
     {
         _getSelectedDevice = getSelectedDevice;
@@ -70,6 +78,14 @@ public partial class TextTabViewModel : ViewModelBase
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
         FontFamilies = new ObservableCollection<string>(fontFamilies);
         SelectedFontFamily = fontFamilies.Contains("Arial") ? "Arial" : fontFamilies.FirstOrDefault();
+    }
+
+    partial void OnSelectedSizeChanged(string value)
+    {
+        if (!BoxStyleEnabled)
+        {
+            SelectedBoxStyle = nameof(LetraHelper.TextBoxStyle.None);
+        }
     }
 
     /// <summary>Joins the two lines with <see cref="Environment.NewLine"/> so <see cref="LetraHelper"/> renders them stacked.</summary>

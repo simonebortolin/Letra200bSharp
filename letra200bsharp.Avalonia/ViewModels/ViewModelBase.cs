@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace letra200bsharp.Avalonia.ViewModels;
+namespace Letra200bSharp.Avalonia.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {

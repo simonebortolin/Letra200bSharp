@@ -1,6 +1,6 @@
 ﻿using InTheHand.Bluetooth;
 
-namespace letra200bsharp
+namespace Letra200bSharp
 {
     /// <summary>
     /// Discovers and talks to a Dymo LetraTag 200B over Bluetooth LE. Service/characteristic
@@ -19,6 +19,12 @@ namespace letra200bsharp
         /// <summary>
         /// Scans for nearby Dymo LetraTag 200B devices.
         /// </summary>
+        /// <remarks>
+        /// The <see cref="BluetoothLEScanFilter.NamePrefix"/> filter is passed to the platform's
+        /// native BLE scan, but on some platforms (notably Android) it isn't reliably honored -
+        /// unnamed devices or devices with an unrelated name can still come back. The results are
+        /// filtered again here so only devices actually named "Letratag..." are ever surfaced.
+        /// </remarks>
         public static async Task<IReadOnlyCollection<BluetoothDevice>> ScanForDevicesAsync()
         {
             var options = new RequestDeviceOptions { AcceptAllDevices = false };
@@ -27,7 +33,10 @@ namespace letra200bsharp
                 NamePrefix = DeviceNamePrefix
             };
             options.Filters.Add(filter);
-            return await Bluetooth.ScanForDevicesAsync(options);
+            var devices = await Bluetooth.ScanForDevicesAsync(options);
+            return devices
+                .Where(d => !string.IsNullOrWhiteSpace(d.Name) && d.Name.StartsWith(DeviceNamePrefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
 
         /// <summary>

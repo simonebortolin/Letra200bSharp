@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using letra200bsharp.Avalonia.ViewModels;
+using Letra200bSharp.Avalonia.ViewModels;
 
-namespace letra200bsharp.Avalonia;
+namespace Letra200bSharp.Avalonia;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Android.App;
 using Android.Content.PM;
@@ -6,10 +6,10 @@ using Android.OS;
 using Avalonia;
 using Avalonia.Android;
 
-namespace letra200bsharp.Avalonia.Android;
+namespace Letra200bSharp.Avalonia.Android;
 
 [Activity(
-    Label = "letra200bsharp.Avalonia.Android",
+    Label = "Letra200bSharp.Avalonia.Android",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
@@ -30,7 +30,7 @@ public class MainActivity : AvaloniaMainActivity
     private void RequestBluetoothPermissions()
     {
         // "Android" here would otherwise resolve to the nested namespace
-        // "letra200bsharp.Avalonia.Android" (our own project) rather than the root
+        // "Letra200bSharp.Avalonia.Android" (our own project) rather than the root
         // "Android" bindings namespace, since this class's own namespace ends in
         // ".Android" too - qualify with global:: to disambiguate.
         string[] permissions;

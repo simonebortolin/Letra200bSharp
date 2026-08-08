@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 
-namespace letra200bsharp.Console
+namespace Letra200bSharp.Console
 {
     internal class Program
     {

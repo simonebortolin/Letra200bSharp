@@ -2,8 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ZXing;
+using ZXing.Common;
 
-namespace letra200bsharp
+namespace Letra200bSharp
 {
     public class LetraHelper
     {
@@ -285,7 +287,7 @@ namespace letra200bsharp
         /// output, so it has a fixed pixel height (32 * this) and stays crisp instead of
         /// blurring when a UI stretches a 32px-tall bitmap to fill a much larger area.
         /// </summary>
-        public const int PreviewScale = 6;
+        public const int PreviewScale = 4;
 
         /// <summary>
         /// Rotates a SkiaSharp SKBitmap object
@@ -642,7 +644,12 @@ namespace letra200bsharp
                             // Aim for a border that's still ~1.5px wide once this raw canvas
                             // gets scaled down to targetHeight.
                             float borderStrokeWidth = Math.Max(bitmap.Height / (float)targetHeight * 1.5f, 1f);
-                            DrawTextBox(canvas, boxStyle, bitmap.Width, bitmap.Height, borderStrokeWidth);
+                            // Keep the border off the printer's unprintable top/bottom row
+                            // (see PrepareBitmap): without this, the border sits exactly at
+                            // the edge of the 30 printable rows instead of visibly inside
+                            // them. ~1.5px of margin once scaled down to targetHeight.
+                            float verticalMargin = bitmap.Height / (float)targetHeight * 1.5f;
+                            DrawTextBox(canvas, boxStyle, bitmap.Width, bitmap.Height, borderStrokeWidth, verticalMargin);
                         }
                     }
 
@@ -688,12 +695,12 @@ namespace letra200bsharp
         }
 
         /// <summary>Draws a decorative border/underline around the full rendered text canvas.</summary>
-        private static void DrawTextBox(SKCanvas canvas, TextBoxStyle boxStyle, float width, float height, float strokeWidth)
+        private static void DrawTextBox(SKCanvas canvas, TextBoxStyle boxStyle, float width, float height, float strokeWidth, float verticalMargin)
         {
             using (var borderPaint = new SKPaint { Color = SKColors.Black, IsAntialias = false, Style = SKPaintStyle.Stroke, StrokeWidth = strokeWidth })
             {
                 float inset = strokeWidth / 2f;
-                var rect = new SKRect(inset, inset, width - inset, height - inset);
+                var rect = new SKRect(inset, inset + verticalMargin, width - inset, height - inset - verticalMargin);
 
                 switch (boxStyle)
                 {
@@ -775,6 +782,117 @@ namespace letra200bsharp
             {
                 canvas.DrawPath(path, paint);
             }
+        }
+
+        /// <summary>
+        /// 1D barcode symbologies exposed for printing/preview - a curated subset of
+        /// ZXing.Net's <see cref="BarcodeFormat"/>. No 2D symbologies (QR, Data Matrix, ...):
+        /// squeezed into the printer's fixed ~30px printable height they'd come out as a tiny,
+        /// unreadable smudge instead of a scannable code.
+        /// </summary>
+        public enum BarcodeSymbology
+        {
+            Code128,
+            Code39,
+            Codabar,
+            Itf,
+            Ean13,
+            Ean8,
+            UpcA,
+            UpcE
+        }
+
+        private static BarcodeFormat ToZXingFormat(BarcodeSymbology symbology) => symbology switch
+        {
+            BarcodeSymbology.Code128 => BarcodeFormat.CODE_128,
+            BarcodeSymbology.Code39 => BarcodeFormat.CODE_39,
+            BarcodeSymbology.Codabar => BarcodeFormat.CODABAR,
+            BarcodeSymbology.Itf => BarcodeFormat.ITF,
+            BarcodeSymbology.Ean13 => BarcodeFormat.EAN_13,
+            BarcodeSymbology.Ean8 => BarcodeFormat.EAN_8,
+            BarcodeSymbology.UpcA => BarcodeFormat.UPC_A,
+            BarcodeSymbology.UpcE => BarcodeFormat.UPC_E,
+            _ => throw new ArgumentOutOfRangeException(nameof(symbology))
+        };
+
+        /// <summary>
+        /// How many printer dots wide the narrowest barcode module (bar/space unit) gets
+        /// scaled to. Encoding at the natural 1 dot per module (see <see cref="RenderBarcodeImage"/>)
+        /// would make the narrowest bars a single pixel wide - technically correct but too thin
+        /// to print/scan reliably.
+        /// </summary>
+        private const int BarcodeModuleScale = 2;
+
+        /// <summary>
+        /// Renders <paramref name="data"/> as a black-on-white, bars-only barcode (no human
+        /// readable digits underneath, unlike the real Dymo app) using ZXing.Net, sized so its
+        /// module rows exactly match the printer's fixed printable height (30, or 32 if
+        /// <paramref name="noCut"/>). Reuses <see cref="CreateJob(byte[], bool, bool)"/>'s
+        /// <c>preRendered</c> path the same way <see cref="RenderTextImage"/> does.
+        /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/> (e.g. non-numeric EAN/UPC data, or the wrong digit count).</exception>
+        /// <returns>PNG-encoded bytes of the rendered barcode</returns>
+        private static byte[] RenderBarcodeImage(string data, BarcodeSymbology symbology, bool noCut)
+        {
+            int targetHeight = noCut ? 32 : 30;
+            var hints = new Dictionary<EncodeHintType, object> { { EncodeHintType.PURE_BARCODE, true } };
+
+            BitMatrix matrix;
+            try
+            {
+                // width=1 forces ZXing's internal multiple (pixels-per-module) to its minimum
+                // of 1, i.e. the natural, unstretched module width - scaled back up ourselves
+                // below via a crisp nearest-neighbor resize instead of letting ZXing do it, so
+                // that step matches the rest of this file's approach to keeping bars/edges sharp.
+                matrix = new MultiFormatWriter().encode(data, ToZXingFormat(symbology), 1, targetHeight, hints);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"'{data}' isn't valid {symbology} barcode data: {ex.Message}", nameof(data), ex);
+            }
+
+            using (var bitmap = new SKBitmap(matrix.Width, matrix.Height))
+            {
+                for (int x = 0; x < matrix.Width; x++)
+                {
+                    for (int y = 0; y < matrix.Height; y++)
+                    {
+                        bitmap.SetPixel(x, y, matrix[x, y] ? SKColors.Black : SKColors.White);
+                    }
+                }
+
+                using (var scaledBitmap = bitmap.Resize(
+                    new SKImageInfo(matrix.Width * BarcodeModuleScale, targetHeight),
+                    new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
+                using (var image = SKImage.FromBitmap(scaledBitmap))
+                using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                {
+                    return encoded.ToArray();
+                }
+            }
+        }
+
+        /// <param name="data">The barcode's content (digits only for <see cref="BarcodeSymbology.Ean13"/>/<see cref="BarcodeSymbology.Ean8"/>/<see cref="BarcodeSymbology.UpcA"/>/<see cref="BarcodeSymbology.UpcE"/>, with the exact digit count each of those symbologies requires).</param>
+        /// <param name="symbology">Which barcode symbology to encode <paramref name="data"/> as.</param>
+        /// <param name="noCut">See <see cref="PrepareBitmap"/>.</param>
+        /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/>.</exception>
+        public static List<byte[]> CreateJob(string data, BarcodeSymbology symbology, bool noCut = false)
+        {
+            byte[] imageBytes = RenderBarcodeImage(data, symbology, noCut);
+            return CreateJob(imageBytes, noCut, preRendered: true);
+        }
+
+        /// <summary>
+        /// Renders a PNG preview of what <see cref="CreateJob(string, BarcodeSymbology, bool)"/>
+        /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
+        /// </summary>
+        /// <returns>PNG-encoded bytes of the preview image</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/>.</exception>
+        public static byte[] PreviewImage(string data, BarcodeSymbology symbology, bool noCut = false)
+        {
+            byte[] imageBytes = RenderBarcodeImage(data, symbology, noCut);
+            return PreviewImage(imageBytes, noCut, preRendered: true);
         }
     }
 }

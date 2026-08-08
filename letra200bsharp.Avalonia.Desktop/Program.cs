@@ -1,7 +1,7 @@
 ﻿using System;
 using Avalonia;
 
-namespace letra200bsharp.Avalonia.Desktop;
+namespace Letra200bSharp.Avalonia.Desktop;
 
 sealed class Program
 {
