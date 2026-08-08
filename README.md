@@ -5,10 +5,8 @@ C# library and mobile and desktop applications for printing images to a Dymo Let
 - **Letra200bSharp** contains:
   - Logic for resizing / converting an input image to a matrix representing the black and white pixels of the image
   - Protocol for communicating with the device
-- **Letra200bSharp.Console** is a console application that accepts a BLE mac address and an image path that can be sent to the printer
-- **Letra200bSharp.WinForms** is a WinForms application that easily lets you select a device and image for sending to the LetraTag 200B
 - **Letra200bSharp.Avalonia** is a cross-platform Avalonia application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
-  - **Letra200bSharp.Avalonia.Desktop** is a Avalonia desktop application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
+  - **Letra200bSharp.Avalonia.Desktop** is the Windows/Linux desktop app. Launched with no arguments it opens the GUI; launched with arguments it instead runs headless as a CLI, with one verb per tab - `image`, `text`, `barcode` - plus `list-devices` to scan for nearby printers (run with `--help`, or `<verb> --help`, for the full option list)
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
 
 ## Used libraries
