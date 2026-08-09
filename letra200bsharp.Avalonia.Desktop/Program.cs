@@ -1,21 +1,9 @@
-using System;
-using System.Runtime.InteropServices;
-using Avalonia;
+﻿using Avalonia;
 
 namespace Letra200bSharp.Avalonia.Desktop;
 
 sealed class Program
 {
-#if WINDOWS
-    [DllImport("kernel32.dll")]
-    private static extern bool AttachConsole(int dwProcessId);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool FreeConsole();
-
-    private const int AttachParentProcess = -1;
-#endif
-
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -29,7 +17,7 @@ sealed class Program
             // own), which on Windows means stdout isn't connected to whatever terminal invoked
             // it - reattach to that terminal explicitly so CLI output is actually visible.
             // Harmless even if this turns out not to be a CLI invocation after all (see below).
-            AttachConsole(AttachParentProcess);
+            Windows.Win32.PInvoke.AttachConsole(Windows.Win32.PInvoke.ATTACH_PARENT_PROCESS);
 #endif
 
             var exitCode = Cli.RunAsync(args).GetAwaiter().GetResult();
@@ -38,7 +26,7 @@ sealed class Program
 #if WINDOWS
                 // Detach cleanly before exiting, otherwise the parent shell's prompt can end
                 // up racing our last bit of output instead of reliably appearing after it.
-                FreeConsole();
+                Windows.Win32.PInvoke.FreeConsole();
 #endif
                 return exitCode.Value;
             }
@@ -47,7 +35,7 @@ sealed class Program
             // (e.g. a platform windowing option) rather than a CLI invocation, so fall through
             // and let the GUI have a shot at them instead of treating this as a usage error.
 #if WINDOWS
-            FreeConsole();
+            Windows.Win32.PInvoke.FreeConsole();
 #endif
         }
 
