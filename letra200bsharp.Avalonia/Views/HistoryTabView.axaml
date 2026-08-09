@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
+             xmlns:services="using:Letra200bSharp.Avalonia.Services"
+             xmlns:conv="using:Letra200bSharp.Avalonia.Converters"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
+             x:Class="Letra200bSharp.Avalonia.Views.HistoryTabView"
+             x:Name="Root"
+             x:DataType="vm:HistoryTabViewModel">
+    <Grid Margin="8">
+        <TextBlock Text="No prints yet."
+                   IsVisible="{Binding !HasEntries}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Opacity="0.6" />
+
+        <ListBox ItemsSource="{Binding Entries}" IsVisible="{Binding HasEntries}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="services:HistoryEntry">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,4">
+                        <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Background="White" Width="70" Height="36">
+                            <Image Stretch="Uniform" Margin="2"
+                                   Source="{Binding ThumbnailPng, Converter={x:Static conv:ByteArrayToBitmapConverter.Instance}}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:g}'}" FontSize="11" Opacity="0.6" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Content="Reprint" Margin="4,0"
+                                IsVisible="{Binding CanReprint}"
+                                Command="{Binding #Root.((vm:HistoryTabViewModel)DataContext).ReprintCommand}"
+                                CommandParameter="{Binding}" />
+                        <Button Grid.Column="3" Content="Delete"
+                                Command="{Binding #Root.((vm:HistoryTabViewModel)DataContext).DeleteCommand}"
+                                CommandParameter="{Binding}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

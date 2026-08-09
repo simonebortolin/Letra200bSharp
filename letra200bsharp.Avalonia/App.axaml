@@ -1,6 +1,7 @@
 ﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:Letra200bSharp.Avalonia"
+             xmlns:suki="clr-namespace:SukiUI;assembly=SukiUI"
              x:Class="Letra200bSharp.Avalonia.App"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
@@ -9,7 +10,26 @@
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <!-- SukiUI restyles specific controls (Button, CheckBox, ...) with their own theme-aware
+         Foreground, but doesn't restyle plain TextBlock - left alone, its default Foreground
+         is a hardcoded black regardless of theme, so it goes invisible against a dark
+         background (see MainView.axaml, which applies this via inherited TextElement.Foreground
+         instead of a blanket "Style Selector=TextBlock", so it doesn't fight controls - like
+         those Buttons - that already set their own Foreground). -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#1A1A1A" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#F0F0F0" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
-        <FluentTheme />
+        <suki:SukiTheme ThemeColor="Blue" />
     </Application.Styles>
 </Application>

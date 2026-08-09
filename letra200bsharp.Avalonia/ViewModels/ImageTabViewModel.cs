@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Services;
 
 namespace Letra200bSharp.Avalonia.ViewModels;
 
@@ -10,6 +11,7 @@ public partial class ImageTabViewModel : ViewModelBase
 {
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
+    private readonly PrintHistoryService _historyService;
 
     /// <summary>
     /// Wired up by the view (needs a TopLevel to show a native file picker), since the
@@ -39,6 +41,9 @@ public partial class ImageTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsPreviewLoading { get; set; }
+
     /// <summary>
     /// "No cut" only makes sense for an image that was already deliberately sized for the
     /// printer's full 32px head resolution - i.e. "Pre-rendered" - so it stays disabled
@@ -46,10 +51,11 @@ public partial class ImageTabViewModel : ViewModelBase
     /// </summary>
     public bool NoCutEnabled => PreRendered;
 
-    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus)
+    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
+        _historyService = historyService;
     }
 
     partial void OnPreRenderedChanged(bool value)
@@ -91,6 +97,7 @@ public partial class ImageTabViewModel : ViewModelBase
         var preRendered = PreRendered;
         try
         {
+            IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
                 var previewBytes = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
@@ -105,6 +112,10 @@ public partial class ImageTabViewModel : ViewModelBase
         catch (Exception ex)
         {
             _reportStatus($"Unable to generate preview: {ex.Message}", true);
+        }
+        finally
+        {
+            IsPreviewLoading = false;
         }
     }
 
@@ -135,6 +146,11 @@ public partial class ImageTabViewModel : ViewModelBase
 
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
+
+            if (result.Printed)
+            {
+                RecordHistory(imageBytes, noCut, preRendered);
+            }
         }
         catch (Exception ex)
         {
@@ -143,6 +159,24 @@ public partial class ImageTabViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Best-effort: a history-recording failure must never look like the print itself failed,
+    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
+    /// No reprint parameters are kept for images - see <see cref="Services.HistoryEntry"/>.
+    /// </summary>
+    private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered)
+    {
+        try
+        {
+            var thumbnail = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
+            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? "Image", thumbnail));
+        }
+        catch
+        {
+            // See summary above.
         }
     }
 }
