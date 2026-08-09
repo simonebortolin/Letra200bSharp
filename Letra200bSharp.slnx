@@ -1,0 +1,30 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Solution Items/Screenshot/">
+    <File Path="Screenshot/Barcode1.png" />
+    <File Path="Screenshot/Barcode2.png" />
+    <File Path="Screenshot/Barcode3.png" />
+    <File Path="Screenshot/Barcode4.png" />
+    <File Path="Screenshot/Image1.png" />
+    <File Path="Screenshot/Image2.png" />
+    <File Path="Screenshot/Image3.png" />
+    <File Path="Screenshot/Image4.png" />
+    <File Path="Screenshot/Text1.png" />
+    <File Path="Screenshot/Text2.png" />
+    <File Path="Screenshot/Text3.png" />
+    <File Path="Screenshot/Text4.png" />
+  </Folder>
+  <Project Path="letra200bsharp.Avalonia.Android/Letra200bSharp.Avalonia.Android.csproj">
+    <Deploy Solution="*|Any CPU" />
+  </Project>
+  <Project Path="letra200bsharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
+  <Project Path="letra200bsharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
+  <Project Path="letra200bsharp/Letra200bSharp.csproj" />
+</Solution>

@@ -1,0 +1,30 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- letra200bsharp -->
+    <PackageVersion Include="SkiaSharp" Version="4.148.0" />
+    <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.37" />
+    <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
+         Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
+    <PackageVersion Include="Tmds.DBus" Version="0.92.0" />
+    <PackageVersion Include="ZXing.Net" Version="0.16.11" />
+
+    <!-- letra200bsharp.Avalonia -->
+    <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="SukiUI" Version="7.0.1" />
+    <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
+    <!-- letra200bsharp.Avalonia.Android -->
+    <PackageVersion Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.2" />
+
+    <!-- letra200bsharp.Avalonia.Desktop -->
+    <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageVersion Include="CommandLineParser" Version="2.9.1" />
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.298" />
+  </ItemGroup>
+</Project>

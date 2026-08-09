@@ -5,12 +5,13 @@
              xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
              xmlns:services="using:Letra200bSharp.Avalonia.Services"
              xmlns:conv="using:Letra200bSharp.Avalonia.Converters"
+             xmlns:res="using:Letra200bSharp.Avalonia.Resources"
              mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
              x:Class="Letra200bSharp.Avalonia.Views.HistoryTabView"
              x:Name="Root"
              x:DataType="vm:HistoryTabViewModel">
     <Grid Margin="8">
-        <TextBlock Text="No prints yet."
+        <TextBlock Text="{x:Static res:Strings.HistoryTab_NoPrintsYet}"
                    IsVisible="{Binding !HasEntries}"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    Opacity="0.6" />
@@ -27,11 +28,11 @@
                             <TextBlock Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:g}'}" FontSize="11" Opacity="0.6" />
                         </StackPanel>
-                        <Button Grid.Column="2" Content="Reprint" Margin="4,0"
+                        <Button Grid.Column="2" Content="{x:Static res:Strings.HistoryTab_ReprintButton}" Margin="4,0"
                                 IsVisible="{Binding CanReprint}"
                                 Command="{Binding #Root.((vm:HistoryTabViewModel)DataContext).ReprintCommand}"
                                 CommandParameter="{Binding}" />
-                        <Button Grid.Column="3" Content="Delete"
+                        <Button Grid.Column="3" Content="{x:Static res:Strings.HistoryTab_DeleteButton}"
                                 Command="{Binding #Root.((vm:HistoryTabViewModel)DataContext).DeleteCommand}"
                                 CommandParameter="{Binding}" />
                     </Grid>

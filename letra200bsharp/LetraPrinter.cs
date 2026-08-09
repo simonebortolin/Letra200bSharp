@@ -1,4 +1,5 @@
-﻿using InTheHand.Bluetooth;
+﻿using System.Diagnostics;
+using InTheHand.Bluetooth;
 
 namespace Letra200bSharp
 {
@@ -15,6 +16,9 @@ namespace Letra200bSharp
         private static readonly BluetoothUuid PrintReplyUuid = BluetoothUuid.FromGuid(new Guid("be3dd652-2b3d-42f1-99c1-f0f749dd0678"));
 
         private static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(10);
+
+        /// <summary>MTU (bytes) requested from the printer before printing - see <see cref="LetraPrintStats.RequestedMtu"/>.</summary>
+        private const int RequestedMtu = 512;
 
         /// <summary>
         /// Scans for nearby Dymo LetraTag 200B devices.
@@ -60,6 +64,7 @@ namespace Letra200bSharp
         /// <exception cref="InvalidOperationException">The device's service or characteristics could not be resolved.</exception>
         public static async Task<LetraPrintResult> PrintAsync(BluetoothDevice device, List<byte[]> job)
         {
+            var stopwatch = Stopwatch.StartNew();
             var services = await device.Gatt.GetPrimaryServicesAsync();
             var uuid = services.FirstOrDefault(s => s.Uuid.ToString().Length == 36)?.Uuid;
             if (uuid.HasValue)
@@ -89,17 +94,20 @@ namespace Letra200bSharp
                 // Use a CancellationTokenSource to prevent hanging background timeout threads
                 using var cts = new CancellationTokenSource();
 
+                bool mtuNegotiated;
                 try
                 {
                     // 1. Android 16 Stabilization: Request MTU BEFORE starting notifications
                     try
                     {
-                        await device.Gatt.RequestMtuAsync(512);
+                        await device.Gatt.RequestMtuAsync(RequestedMtu);
                         await Task.Delay(100); // Allow hardware handshake to finish
+                        mtuNegotiated = true;
                     }
                     catch
                     {
                         // Silent fallback if specific firmware rejects MTU calls
+                        mtuNegotiated = false;
                     }
 
                     // 2. Start notifications on the newly stabilized MTU size
@@ -118,15 +126,17 @@ namespace Letra200bSharp
                     var timeoutTask = Task.Delay(ReplyTimeout, cts.Token);
                     var completed = await Task.WhenAny(replyReceived.Task, timeoutTask);
 
+                    var stats = new LetraPrintStats(job.Sum(p => p.Length), job.Count, stopwatch.Elapsed, uuid.Value.ToString(), RequestedMtu, mtuNegotiated);
+
                     if (completed != replyReceived.Task)
                     {
-                        return new LetraPrintResult(null, false, "The printer didn't report a result within the timeout - the label may or may not have printed.");
+                        return new LetraPrintResult(null, false, Resources.Strings.PrintResult_Timeout, stats);
                     }
 
                     // Instantly cancel and dispose of the unused timeout task
                     cts.Cancel();
 
-                    return InterpretStatusCode(await replyReceived.Task);
+                    return InterpretStatusCode(await replyReceived.Task) with { Stats = stats };
                 }
                 catch (Exception e)
                 {
@@ -154,15 +164,15 @@ namespace Letra200bSharp
 
         private static LetraPrintResult InterpretStatusCode(byte statusCode) => statusCode switch
         {
-            0 => new LetraPrintResult(statusCode, true, "Printing completed (the printer can report this even when it didn't actually print, e.g. lid open or no cassette)."),
-            1 => new LetraPrintResult(statusCode, true, "Printing completed."),
-            2 => new LetraPrintResult(statusCode, false, "Printing failed for an unknown reason."),
-            3 => new LetraPrintResult(statusCode, true, "Printing completed, but the battery is low - it may not print again with the same batteries."),
-            4 => new LetraPrintResult(statusCode, false, "Printing was cancelled."),
-            5 => new LetraPrintResult(statusCode, false, "Printing failed for an unknown reason."),
-            6 => new LetraPrintResult(statusCode, false, "Printing failed because the battery is low."),
-            7 => new LetraPrintResult(statusCode, false, "Printing failed because no cassette was inserted."),
-            _ => new LetraPrintResult(statusCode, false, $"Printing failed with an unrecognized status code ({statusCode}).")
+            0 => new LetraPrintResult(statusCode, true, Resources.Strings.PrintResult_StatusCompletedMaybe),
+            1 => new LetraPrintResult(statusCode, true, Resources.Strings.PrintResult_StatusCompleted),
+            2 => new LetraPrintResult(statusCode, false, Resources.Strings.PrintResult_StatusUnknownFailure),
+            3 => new LetraPrintResult(statusCode, true, Resources.Strings.PrintResult_StatusLowBatteryCompleted),
+            4 => new LetraPrintResult(statusCode, false, Resources.Strings.PrintResult_StatusCancelled),
+            5 => new LetraPrintResult(statusCode, false, Resources.Strings.PrintResult_StatusUnknownFailure),
+            6 => new LetraPrintResult(statusCode, false, Resources.Strings.PrintResult_StatusLowBatteryFailed),
+            7 => new LetraPrintResult(statusCode, false, Resources.Strings.PrintResult_StatusNoCassette),
+            _ => new LetraPrintResult(statusCode, false, string.Format(Resources.Strings.PrintResult_StatusUnrecognized, statusCode))
         };
     }
 
@@ -175,5 +185,22 @@ namespace Letra200bSharp
     /// - see <see cref="Message"/> for the specific caveat, if any.
     /// </param>
     /// <param name="Message">Human-readable explanation of the status.</param>
-    public readonly record struct LetraPrintResult(byte? StatusCode, bool Printed, string Message);
+    /// <param name="Stats">
+    /// Protocol-level numbers about this attempt ("stats for nerds" - purely informational, not
+    /// used by <see cref="Printed"/>/<see cref="Message"/>). <c>null</c> only if the attempt
+    /// failed before a service/characteristic could even be resolved (see <see cref="LetraPrinter.PrintAsync(BluetoothDevice, List{byte[]})"/>).
+    /// </param>
+    public readonly record struct LetraPrintResult(byte? StatusCode, bool Printed, string Message, LetraPrintStats? Stats = null);
+
+    /// <summary>
+    /// Low-level, protocol-facing numbers about a print attempt - the kind of thing a "stats for
+    /// nerds" panel would show, not anything the app's own success/failure logic relies on.
+    /// </summary>
+    /// <param name="TotalBytes">Combined size of every packet written to the "print request" characteristic.</param>
+    /// <param name="PacketCount">How many separate BLE writes the job was split into (see <see cref="LetraHelper"/>'s ~300-byte chunking).</param>
+    /// <param name="Elapsed">Wall-clock time from starting the attempt to getting a result (service/characteristic resolution, MTU negotiation, writing every packet, and waiting for the printer's reply).</param>
+    /// <param name="ServiceUuid">The GATT service UUID the printer actually advertised (see <see cref="LetraPrinter"/>'s remarks) and that this attempt bound to.</param>
+    /// <param name="RequestedMtu">The MTU (bytes) requested from the printer before writing any packets.</param>
+    /// <param name="MtuNegotiated">Whether the printer accepted the MTU request, or it was silently ignored (see <see cref="LetraPrinter.PrintAsync(BluetoothDevice, List{byte[]})"/>).</param>
+    public readonly record struct LetraPrintStats(int TotalBytes, int PacketCount, TimeSpan Elapsed, string ServiceUuid, int RequestedMtu, bool MtuNegotiated);
 }

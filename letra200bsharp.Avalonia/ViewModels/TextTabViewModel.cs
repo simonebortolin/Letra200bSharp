@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
 using SkiaSharp;
 
@@ -14,6 +15,7 @@ public partial class TextTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly Action<LetraPrintResult> _recordStats;
 
     public ObservableCollection<string> FontFamilies { get; }
     public ObservableCollection<string> Sizes { get; } = new(Enum.GetNames<LetraHelper.LabelTextSize>());
@@ -66,7 +68,7 @@ public partial class TextTabViewModel : ViewModelBase
     public bool Line2Enabled => SelectedStyle != nameof(LetraHelper.TextStyle.Vertical) && SelectedSize != "L" && SelectedSize != "XL";
 
     /// <summary>"Text:" on its own when there's only one line, "Text Line 1:" once a second line is available too.</summary>
-    public string Line1Label => Line2Enabled ? "Text Line 1:" : "Text:";
+    public string Line1Label => Line2Enabled ? Strings.TextTab_Line1LabelWithLine2 : Strings.TextTab_Line1LabelSingle;
 
     /// <summary>
     /// XL fills the entire printable height with no margin around the text (see
@@ -75,11 +77,12 @@ public partial class TextTabViewModel : ViewModelBase
     /// </summary>
     public bool BoxStyleEnabled => SelectedSize != "XL";
 
-    public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService)
+    public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
         FontFamilies = new ObservableCollection<string>(fontFamilies);
@@ -152,7 +155,7 @@ public partial class TextTabViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _reportStatus($"Unable to generate preview: {ex.Message}", true);
+            _reportStatus(string.Format(Strings.Status_UnableToGeneratePreview, ex.Message), true);
         }
         finally
         {
@@ -166,14 +169,14 @@ public partial class TextTabViewModel : ViewModelBase
         var text = ComposedText;
         if (string.IsNullOrEmpty(text))
         {
-            _reportStatus("No text entered.", true);
+            _reportStatus(Strings.TextTab_NoTextEntered, true);
             return;
         }
 
         var device = _getSelectedDevice();
         if (device == null)
         {
-            _reportStatus("No device selected.", true);
+            _reportStatus(Strings.Status_NoDeviceSelected, true);
             return;
         }
 
@@ -190,6 +193,7 @@ public partial class TextTabViewModel : ViewModelBase
             var job = await Task.Run(() => LetraHelper.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
+            _recordStats(result);
 
             if (result.Printed)
             {

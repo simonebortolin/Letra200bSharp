@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
              xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:res="using:Letra200bSharp.Avalonia.Resources"
              mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
              x:Class="Letra200bSharp.Avalonia.Views.ImageTabView"
              x:DataType="vm:ImageTabViewModel">
@@ -11,14 +12,14 @@
         <ScrollViewer Grid.Row="0">
             <StackPanel>
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBox Grid.Column="1" Text="{Binding ImagePath}" IsReadOnly="True" PlaceholderText="No file selected" />
-                    <Button Grid.Column="2" Content="Browse..." Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
+                    <TextBlock Grid.Column="0" Text="{x:Static res:Strings.ImageTab_ImageLabel}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Column="1" Text="{Binding ImagePath}" IsReadOnly="True" PlaceholderText="{x:Static res:Strings.ImageTab_NoFileSelectedPlaceholder}" />
+                    <Button Grid.Column="2" Content="{x:Static res:Strings.ImageTab_BrowseButton}" Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <CheckBox Content="Pre-rendered" IsChecked="{Binding PreRendered}" />
-                    <CheckBox Content="No cut" Margin="16,0,0,0" IsChecked="{Binding NoCut}" IsEnabled="{Binding NoCutEnabled}" />
+                    <CheckBox Content="{x:Static res:Strings.ImageTab_PreRenderedCheckbox}" IsChecked="{Binding PreRendered}" />
+                    <CheckBox Content="{x:Static res:Strings.Common_NoCut}" Margin="16,0,0,0" IsChecked="{Binding NoCut}" IsEnabled="{Binding NoCutEnabled}" />
                 </StackPanel>
 
                 <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
@@ -34,6 +35,6 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Button Grid.Row="1" Content="Print" HorizontalAlignment="Center" Margin="0,10,0,0" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
+        <Button Grid.Row="1" Content="{x:Static res:Strings.Common_Print}" HorizontalAlignment="Center" Margin="0,10,0,0" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
     </Grid>
 </UserControl>

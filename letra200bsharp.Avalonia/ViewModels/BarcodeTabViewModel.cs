@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
 
 namespace Letra200bSharp.Avalonia.ViewModels;
@@ -13,6 +14,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly Action<LetraPrintResult> _recordStats;
 
     public ObservableCollection<string> Symbologies { get; } = new(Enum.GetNames<LetraHelper.BarcodeSymbology>());
 
@@ -34,11 +36,12 @@ public partial class BarcodeTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsPreviewLoading { get; set; }
 
-    public BarcodeTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService)
+    public BarcodeTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _recordStats = recordStats;
     }
 
     /// <summary>Restores a previously printed barcode (see <see cref="Services.HistoryEntry.BarcodeParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
@@ -82,7 +85,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _reportStatus($"Unable to generate preview: {ex.Message}", true);
+            _reportStatus(string.Format(Strings.Status_UnableToGeneratePreview, ex.Message), true);
         }
         finally
         {
@@ -96,14 +99,14 @@ public partial class BarcodeTabViewModel : ViewModelBase
         var data = Data;
         if (string.IsNullOrEmpty(data))
         {
-            _reportStatus("No barcode data entered.", true);
+            _reportStatus(Strings.BarcodeTab_NoDataEntered, true);
             return;
         }
 
         var device = _getSelectedDevice();
         if (device == null)
         {
-            _reportStatus("No device selected.", true);
+            _reportStatus(Strings.Status_NoDeviceSelected, true);
             return;
         }
 
@@ -116,6 +119,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
             var job = await Task.Run(() => LetraHelper.CreateJob(data, symbology, noCut));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
+            _recordStats(result);
 
             if (result.Printed)
             {

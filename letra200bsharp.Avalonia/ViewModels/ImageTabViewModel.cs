@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
 
 namespace Letra200bSharp.Avalonia.ViewModels;
@@ -12,6 +13,7 @@ public partial class ImageTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly Action<LetraPrintResult> _recordStats;
 
     /// <summary>
     /// Wired up by the view (needs a TopLevel to show a native file picker), since the
@@ -51,11 +53,12 @@ public partial class ImageTabViewModel : ViewModelBase
     /// </summary>
     public bool NoCutEnabled => PreRendered;
 
-    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService)
+    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _recordStats = recordStats;
     }
 
     partial void OnPreRenderedChanged(bool value)
@@ -111,7 +114,7 @@ public partial class ImageTabViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _reportStatus($"Unable to generate preview: {ex.Message}", true);
+            _reportStatus(string.Format(Strings.Status_UnableToGeneratePreview, ex.Message), true);
         }
         finally
         {
@@ -124,14 +127,14 @@ public partial class ImageTabViewModel : ViewModelBase
     {
         if (_imageBytes == null)
         {
-            _reportStatus("No image file selected.", true);
+            _reportStatus(Strings.ImageTab_NoImageSelected, true);
             return;
         }
 
         var device = _getSelectedDevice();
         if (device == null)
         {
-            _reportStatus("No device selected.", true);
+            _reportStatus(Strings.Status_NoDeviceSelected, true);
             return;
         }
 
@@ -146,6 +149,7 @@ public partial class ImageTabViewModel : ViewModelBase
 
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
+            _recordStats(result);
 
             if (result.Printed)
             {
@@ -172,7 +176,7 @@ public partial class ImageTabViewModel : ViewModelBase
         try
         {
             var thumbnail = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? "Image", thumbnail));
+            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail));
         }
         catch
         {
