@@ -173,7 +173,7 @@ internal static class Cli
                 ? o.Line1 + Environment.NewLine + o.Line2
                 : o.Line1;
 
-            var job = LetraHelper.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, o.NoCut);
+            var job = LetraHelper.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

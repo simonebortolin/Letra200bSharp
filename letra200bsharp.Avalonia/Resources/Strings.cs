@@ -26,6 +26,7 @@ public static class Strings
     public static string Common_Print => Get(nameof(Common_Print));
     public static string Common_Preview => Get(nameof(Common_Preview));
     public static string Common_NoCut => Get(nameof(Common_NoCut));
+    public static string Common_AlignLabel => Get(nameof(Common_AlignLabel));
 
     public static string MainWindow_Title => Get(nameof(MainWindow_Title));
 

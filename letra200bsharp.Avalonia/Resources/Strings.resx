@@ -190,6 +190,9 @@
   <data name="TextTab_NoTextEntered" xml:space="preserve">
     <value>No text entered.</value>
   </data>
+  <data name="Common_AlignLabel" xml:space="preserve">
+    <value>Align:</value>
+  </data>
 
   <data name="BarcodeTab_NoDataEntered" xml:space="preserve">
     <value>No barcode data entered.</value>

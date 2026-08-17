@@ -431,24 +431,41 @@ namespace Letra200bSharp
         /// printer, so this directly controls how wide the printed text ends up.
         /// </param>
         /// <param name="boxStyle">Decorative border/underline framing the text, matching a subset of the real Dymo app's options.</param>
+        /// <param name="align">Horizontal alignment of shorter lines relative to the widest one (only visible when lines differ in length).</param>
         /// <param name="noCut">See <see cref="PrepareBitmap"/>.</param>
         /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
-        public static List<byte[]> CreateJob(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, bool noCut = false)
+        public static List<byte[]> CreateJob(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, TextAlign align = TextAlign.Left, bool noCut = false)
         {
-            byte[] imageBytes = RenderTextImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, noCut);
+            byte[] imageBytes = RenderTextImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut);
             return CreateJob(imageBytes, noCut, preRendered: true);
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="CreateJob(string, string, LabelTextSize, TextStyle, bool, float, TextBoxStyle, bool)"/>
+        /// Renders a PNG preview of what <see cref="CreateJob(string, string, LabelTextSize, TextStyle, bool, float, TextBoxStyle, TextAlign, bool)"/>
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image</returns>
-        public static byte[] PreviewImage(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, bool noCut = false)
+        public static byte[] PreviewImage(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, TextAlign align = TextAlign.Left, bool noCut = false)
         {
-            byte[] imageBytes = RenderTextImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, noCut);
+            byte[] imageBytes = RenderTextImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
+
+        /// <summary>Horizontal alignment of shorter lines relative to the widest line in a multi-line label.</summary>
+        public enum TextAlign
+        {
+            Left,
+            Center,
+            Right
+        }
+
+        /// <summary>How far a narrower element sits from a wider one's left edge, as a fraction of the leftover space - 0 for Left, 0.5 for Center, 1 for Right.</summary>
+        private static float AlignFactor(TextAlign align) => align switch
+        {
+            TextAlign.Center => 0.5f,
+            TextAlign.Right => 1f,
+            _ => 0f
+        };
 
         /// <summary>
         /// Font weight/effect options offered by the real Dymo LetraTag app.
@@ -531,7 +548,7 @@ namespace Letra200bSharp
         /// ratio - equivalent to ImageMagick's <c>-resize x30</c>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered label</returns>
-        private static byte[] RenderTextImage(string text, string fontFamily, LabelTextSize size, TextStyle style, bool upperCase, float widthScale, TextBoxStyle boxStyle, bool noCut)
+        private static byte[] RenderTextImage(string text, string fontFamily, LabelTextSize size, TextStyle style, bool upperCase, float widthScale, TextBoxStyle boxStyle, TextAlign align, bool noCut)
         {
             if (upperCase)
             {
@@ -576,7 +593,15 @@ namespace Letra200bSharp
                 font.GetFontMetrics(out SKFontMetrics metrics);
                 float ascent = -metrics.Ascent;
                 float lineHeight = ascent + metrics.Descent;
-                float maxLineWidth = lines.Max(line => font.MeasureText(line, paint));
+                float[] lineWidths = lines.Select(line => font.MeasureText(line, paint)).ToArray();
+                float maxLineWidth = lineWidths.Max();
+
+                // How far a line's own left edge sits from the widest line's left edge, as a
+                // fraction of the leftover space - 0 for Left (flush with the widest line), 0.5
+                // for Center, 1 for Right - so lines shorter than maxLineWidth (e.g. two lines
+                // of very different length) align relative to each other instead of always
+                // flushing left.
+                float alignFactor = AlignFactor(align);
 
                 float horizontalPadding = maxLineWidth * paddingRatio;
 
@@ -640,15 +665,16 @@ namespace Letra200bSharp
                         canvas.Clear(SKColors.White);
                         for (int i = 0; i < lines.Length; i++)
                         {
+                            float x = horizontalPadding + (maxLineWidth - lineWidths[i]) * alignFactor;
                             float y = verticalShift + ascent + i * (lineHeight + lineGap);
                             if (shadowOffset > 0)
                             {
                                 // Simulate a drop shadow on a 1-bit printer by drawing a
                                 // second, offset copy behind the main glyphs - the overlap
                                 // reads as a solid "echo" trailing each letter.
-                                canvas.DrawText(lines[i], horizontalPadding + shadowOffset, y + shadowOffset, SKTextAlign.Left, font, paint);
+                                canvas.DrawText(lines[i], x + shadowOffset, y + shadowOffset, SKTextAlign.Left, font, paint);
                             }
-                            canvas.DrawText(lines[i], horizontalPadding, y, SKTextAlign.Left, font, paint);
+                            canvas.DrawText(lines[i], x, y, SKTextAlign.Left, font, paint);
                         }
 
                         if (boxStyle != TextBoxStyle.None)

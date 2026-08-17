@@ -50,6 +50,10 @@
                         <TextBlock Grid.Column="0" Text="{x:Static res:Strings.TextTab_BoxLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
                         <ComboBox Grid.Column="1" ItemsSource="{Binding BoxStyles}" SelectedItem="{Binding SelectedBoxStyle}" HorizontalAlignment="Stretch" />
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.Common_AlignLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Aligns}" SelectedItem="{Binding SelectedAlign}" HorizontalAlignment="Stretch" />
+                    </Grid>
                     <CheckBox Content="{x:Static res:Strings.TextTab_UppercaseCheckbox}" IsChecked="{Binding UpperCase}" MinWidth="210" Margin="0,0,16,10" />
                 </WrapPanel>
 

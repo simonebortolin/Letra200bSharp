@@ -21,6 +21,7 @@ public partial class TextTabViewModel : ViewModelBase
     public ObservableCollection<string> Sizes { get; } = new(Enum.GetNames<LetraHelper.LabelTextSize>());
     public ObservableCollection<string> Styles { get; } = new(Enum.GetNames<LetraHelper.TextStyle>());
     public ObservableCollection<string> BoxStyles { get; } = new(Enum.GetNames<LetraHelper.TextBoxStyle>());
+    public ObservableCollection<string> Aligns { get; } = new(Enum.GetNames<LetraHelper.TextAlign>());
 
     [ObservableProperty]
     public partial string Line1 { get; set; } = "Hello world";
@@ -45,6 +46,9 @@ public partial class TextTabViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string SelectedBoxStyle { get; set; } = nameof(LetraHelper.TextBoxStyle.None);
+
+    [ObservableProperty]
+    public partial string SelectedAlign { get; set; } = nameof(LetraHelper.TextAlign.Left);
 
     [ObservableProperty]
     public partial bool UpperCase { get; set; }
@@ -103,6 +107,7 @@ public partial class TextTabViewModel : ViewModelBase
         WidthScale = parameters.WidthScale;
         SelectedBoxStyle = parameters.BoxStyle;
         UpperCase = parameters.UpperCase;
+        SelectedAlign = parameters.Align;
 
         PreviewCommand.Execute(null);
     }
@@ -138,13 +143,14 @@ public partial class TextTabViewModel : ViewModelBase
         var upperCase = UpperCase;
         var widthScale = (float)WidthScale;
         var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
+        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, true);
+                var previewBytes = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -186,18 +192,19 @@ public partial class TextTabViewModel : ViewModelBase
         var upperCase = UpperCase;
         var widthScale = (float)WidthScale;
         var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
+        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, true));
+            var job = await Task.Run(() => LetraHelper.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
             if (result.Printed)
             {
-                RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle);
+                RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align);
             }
         }
         catch (Exception ex)
@@ -214,12 +221,12 @@ public partial class TextTabViewModel : ViewModelBase
     /// Best-effort: a history-recording failure must never look like the print itself failed,
     /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
     /// </summary>
-    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle)
+    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align)
     {
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, true);
-            var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase);
+            var thumbnail = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+            var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase, SelectedAlign);
             _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters));
         }
         catch

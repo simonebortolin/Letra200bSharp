@@ -20,7 +20,8 @@ public sealed record TextHistoryParams(
     string Style,
     decimal WidthScale,
     string BoxStyle,
-    bool UpperCase);
+    bool UpperCase,
+    string Align = "Left");
 
 /// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
 public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut);
