@@ -88,6 +88,9 @@
   <data name="MainView_BarcodeTabHeader" xml:space="preserve">
     <value>Barcode</value>
   </data>
+  <data name="MainView_DinRailTabHeader" xml:space="preserve">
+    <value>DIN Rail</value>
+  </data>
   <data name="MainView_HistoryTabHeader" xml:space="preserve">
     <value>History</value>
   </data>
@@ -192,6 +195,43 @@
   </data>
   <data name="TextTab_NoTextEntered" xml:space="preserve">
     <value>No text entered.</value>
+  </data>
+
+  <data name="DinRailTab_SizeNoteFormat" xml:space="preserve">
+    <value>12 mm tall · {0:0.#} mm printed ({1} labels)</value>
+  </data>
+  <data name="DinRailTab_NoTextEntered" xml:space="preserve">
+    <value>No text entered.</value>
+  </data>
+  <data name="DinRailTab_TextColumnHeader" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="DinRailTab_TextPlaceholder" xml:space="preserve">
+    <value>e.g. General, Outlets, Lights</value>
+  </data>
+  <data name="DinRailTab_ModulesColumnHeader" xml:space="preserve">
+    <value>DIN modules</value>
+  </data>
+  <data name="DinRailTab_TotalModulesFormat" xml:space="preserve">
+    <value>({0:0.#} total)</value>
+  </data>
+  <data name="DinRailTab_AddRowButton" xml:space="preserve">
+    <value>+ Add label</value>
+  </data>
+  <data name="DinRailTab_RemoveRowTooltip" xml:space="preserve">
+    <value>Remove this label</value>
+  </data>
+  <data name="DinRailTab_DragHandleTooltip" xml:space="preserve">
+    <value>Drag to reorder</value>
+  </data>
+  <data name="DinRailTab_SeparatorsCheckbox" xml:space="preserve">
+    <value>Print separators</value>
+  </data>
+  <data name="DinRailTab_SizingLabel" xml:space="preserve">
+    <value>Sizing:</value>
+  </data>
+  <data name="DinRailTab_TooSmallWarning" xml:space="preserve">
+    <value>This text needs a lot of shrinking to fit - it will likely print too small to read. Shorten it or add more modules.</value>
   </data>
   <data name="Common_AlignLabel" xml:space="preserve">
     <value>Align:</value>

@@ -30,15 +30,21 @@
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="{x:Static res:Strings.MainView_DevicesLabel}" FontWeight="Bold" Margin="0,0,0,4" />
-                        <ListBox ItemsSource="{Binding Devices}"
-                                 SelectedItem="{Binding SelectedDevice}"
-                                 Height="140">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <!-- Same busy-overlay pattern as the label previews (see e.g.
+                             ImageTabView) - the BLE scan behind RefreshDevicesCommand has no
+                             meaningful progress percentage, so an indeterminate spinner over
+                             the list is the honest way to show "still scanning". -->
+                        <suki:BusyArea IsBusy="{Binding IsRefreshing}">
+                            <ListBox ItemsSource="{Binding Devices}"
+                                     SelectedItem="{Binding SelectedDevice}"
+                                     Height="140">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </suki:BusyArea>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="8,20,0,0">
                         <Button Content="{x:Static res:Strings.MainView_RefreshButton}"
@@ -59,6 +65,9 @@
                     </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_BarcodeTabHeader}">
                         <views:BarcodeTabView DataContext="{Binding Barcode}" />
+                    </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_DinRailTabHeader}">
+                        <views:DinRailTabView DataContext="{Binding DinRail}" />
                     </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_HistoryTabHeader}">
                         <views:HistoryTabView DataContext="{Binding History}" />

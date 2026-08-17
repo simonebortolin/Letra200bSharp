@@ -78,10 +78,41 @@ internal class BarcodeOptions
     public bool ShowNumber { get; set; }
 }
 
+[Verb("din", HelpText = "Print a DIN rail label strip - one or more text segments, each sized to a number of 18mm DIN modules, printed as a single continuous label.")]
+internal class DinOptions
+{
+    [Option("address", Required = true, HelpText = "Bluetooth address (or id) of the printer.")]
+    public required string Address { get; set; }
+
+    [Option("label", Required = true, Min = 1, HelpText = "One label segment as \"text=modules\" (modules = how many 18mm DIN modules wide, e.g. \"Generale=2\"). Repeat for multiple segments in the strip.")]
+    public required IEnumerable<string> Labels { get; set; }
+
+    [Option("font", Default = "Arial", HelpText = "Font family name.")]
+    public string Font { get; set; } = "Arial";
+
+    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Bold, Italic, Outline, or Shadow (Vertical isn't supported for DIN rail labels).")]
+    public LetraHelper.TextStyle Style { get; set; }
+
+    [Option("align", Default = LetraHelper.TextAlign.Center, HelpText = "Left, Center, or Right.")]
+    public LetraHelper.TextAlign Align { get; set; }
+
+    [Option("sizing", Default = LetraHelper.DinRailSizing.MaxPerLabel, HelpText = "Uniform (every segment rendered at the same, shared scale) or MaxPerLabel (each segment independently as large as it can be).")]
+    public LetraHelper.DinRailSizing Sizing { get; set; }
+
+    [Option("uppercase", HelpText = "Render every label in all uppercase.")]
+    public bool UpperCase { get; set; }
+
+    [Option("no-separators", HelpText = "Don't print a vertical separator line between adjacent segments.")]
+    public bool NoSeparators { get; set; }
+
+    [Option("no-cut", HelpText = "See PrepareBitmap - the rendered strip already accounts for the printer's unprintable top/bottom row.")]
+    public bool NoCut { get; set; }
+}
+
 /// <summary>
-/// The headless counterpart of the Image/Text/Barcode tabs in the Avalonia GUI - one verb
-/// per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old, image-only
-/// letra200bsharp.Console project.
+/// The headless counterpart of the Image/Text/Barcode/DIN Rail tabs in the Avalonia GUI - one
+/// verb per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old,
+/// image-only letra200bsharp.Console project.
 /// </summary>
 internal static class Cli
 {
@@ -104,7 +135,7 @@ internal static class Cli
             cfg.AutoHelp = true;
             cfg.AutoVersion = true;
         });
-        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions>(args);
+        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, DinOptions>(args);
 
         if (parserResult is NotParsed<object> notParsed)
         {
@@ -123,6 +154,7 @@ internal static class Cli
             (ImageOptions o) => RunImageAsync(o),
             (TextOptions o) => RunTextAsync(o),
             (BarcodeOptions o) => RunBarcodeAsync(o),
+            (DinOptions o) => RunDinAsync(o),
             errs => Task.FromResult(1));
     }
 
@@ -191,6 +223,33 @@ internal static class Cli
         try
         {
             var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut, o.ShowNumber);
+            return await PrintAsync(o.Address, job);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunDinAsync(DinOptions o)
+    {
+        try
+        {
+            var rows = new List<(string Text, decimal Modules)>();
+            foreach (var label in o.Labels)
+            {
+                int separatorIndex = label.LastIndexOf('=');
+                if (separatorIndex < 0 || !decimal.TryParse(label[(separatorIndex + 1)..], out var modules))
+                {
+                    Console.WriteLine($"Error: --label \"{label}\" isn't in the \"text=modules\" format (e.g. \"Generale=2\").");
+                    return 1;
+                }
+
+                rows.Add((label[..separatorIndex], modules));
+            }
+
+            var job = LetraHelper.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

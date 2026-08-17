@@ -1,0 +1,171 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
+             xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:res="using:Letra200bSharp.Avalonia.Resources"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="560"
+             x:Class="Letra200bSharp.Avalonia.Views.DinRailTabView"
+             x:Name="Root"
+             x:DataType="vm:DinRailTabViewModel">
+    <Grid RowDefinitions="*,Auto" Margin="8">
+        <ScrollViewer Grid.Row="0">
+            <!-- IsSharedSizeScope makes the header row below and every ListBox item's Auto
+                 columns (drag handle / warning / delete) resolve to one shared width instead of
+                 each Grid instance sizing itself independently - without it, a header with
+                 nothing in column 0/1 (or a row whose warning icon happens to be hidden) ends up
+                 narrower there than a row that has real content, so "Text"/"Modules" drift out
+                 of alignment with the actual text box/spinner beneath them. This is what makes
+                 the plain ListBox below actually line up like a real DataGrid's columns would. -->
+            <StackPanel Spacing="10" Grid.IsSharedSizeScope="True">
+                <!-- Row list: one row per DIN rail segment (text + how many 18mm modules wide
+                     it should be). A plain ListBox + DataTemplate, same pattern as
+                     HistoryTabView, rather than pulling in the Avalonia.Controls.DataGrid
+                     package for what's really just an editable 2-column list. -->
+                <!-- Column widths (and SharedSizeGroup names) mirror the row template's below -
+                     drag handle, warning icon, text, modules, delete - see the IsSharedSizeScope
+                     remark above for why that's what actually keeps them lined up. -->
+                <Grid Margin="0,0,0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailHandle" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailWarning" />
+                        <!-- Deliberately not part of the shared-size group: SharedSizeGroup is
+                             meant for Auto (content-measured) columns kept in sync across grids
+                             - putting a "*" star column in one instead locks its width to
+                             whatever the shared-size discovery pass measured it at, defeating
+                             the whole point of "*" (fill whatever's left) and leaving it stuck
+                             far narrower than the actual available width. The other four
+                             columns are already synced, so this one's leftover width lines up
+                             across the header/rows/footer on its own regardless. -->
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="120" SharedSizeGroup="DinRailModules" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailRemove" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="2" Text="{x:Static res:Strings.DinRailTab_TextColumnHeader}" FontWeight="Bold" Margin="4,0" />
+                    <!-- Spans into the (wide, "*") Text column too and hugs the right edge from
+                         there - the fixed 120px Modules column alone is only as wide as the
+                         NumericUpDown below it, not enough to also fit the running-total text
+                         next to the label without clipping it. Growing left into the Text
+                         column's own unused space (rather than right, into the narrow delete
+                         column) is what actually gives it room, without displacing "Text" above,
+                         which stays put at column 2's left edge. -->
+                    <StackPanel Grid.Column="3" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                        <TextBlock Text="{x:Static res:Strings.DinRailTab_ModulesColumnHeader}" FontWeight="Bold" Margin="4,0" />
+                        <TextBlock Text="{Binding TotalModulesText}" Opacity="0.65" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+                <ListBox x:Name="RowsList" ItemsSource="{Binding Rows}" MaxHeight="260" DragDrop.AllowDrop="True">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DinRailRow">
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailHandle" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailWarning" />
+                                    <!-- Deliberately not part of the shared-size group: SharedSizeGroup is
+                             meant for Auto (content-measured) columns kept in sync across grids
+                             - putting a "*" star column in one instead locks its width to
+                             whatever the shared-size discovery pass measured it at, defeating
+                             the whole point of "*" (fill whatever's left) and leaving it stuck
+                             far narrower than the actual available width. The other four
+                             columns are already synced, so this one's leftover width lines up
+                             across the header/rows/footer on its own regardless. -->
+                        <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="120" SharedSizeGroup="DinRailModules" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailRemove" />
+                                </Grid.ColumnDefinitions>
+                                <!-- Drag handle: press-and-drag anywhere on this grip to reorder
+                                     the row within the strip (see DinRailTabView.axaml.cs) -
+                                     a dedicated handle rather than the whole row so it doesn't
+                                     fight with selecting/editing the text box next to it. -->
+                                <TextBlock Grid.Column="0" Text="⠿" Cursor="SizeAll" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.6"
+                                           PointerPressed="OnDragHandlePointerPressed"
+                                           ToolTip.Tip="{x:Static res:Strings.DinRailTab_DragHandleTooltip}" />
+                                <!-- Warns that this row's text needs so much shrinking to fit its
+                                     module count that it'll likely print too small to read -
+                                     computed from LetraHelper.DinRailRequiredScale, not just a
+                                     character-count guess, so it accounts for the actual font/style/wrap. -->
+                                <TextBlock Grid.Column="1" Text="⚠" Foreground="Orange" VerticalAlignment="Center" Margin="0,0,4,0"
+                                           IsVisible="{Binding IsTooSmallToReadWell}"
+                                           ToolTip.Tip="{x:Static res:Strings.DinRailTab_TooSmallWarning}" />
+                                <TextBox Grid.Column="2" Text="{Binding Text}" PlaceholderText="{x:Static res:Strings.DinRailTab_TextPlaceholder}" Margin="0,0,4,0" />
+                                <NumericUpDown Grid.Column="3" Value="{Binding Modules}" Minimum="0.5" Maximum="18" Increment="0.5" FormatString="0.0" Margin="0,0,4,0" />
+                                <Button Grid.Column="4" Content="✕"
+                                        Command="{Binding #Root.((vm:DinRailTabViewModel)DataContext).RemoveRowCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="{x:Static res:Strings.DinRailTab_RemoveRowTooltip}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <!-- Footer row, same shared columns as the header/rows above - the Add button
+                     sits under the Text column instead of flush against the whole view's left
+                     edge (i.e. under the drag handle, which isn't what it relates to), and the
+                     running total is repeated here too so it's still visible after scrolling
+                     past a long list of rows without having to scroll back up to the header. -->
+                <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailHandle" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailWarning" />
+                        <!-- Deliberately not part of the shared-size group: SharedSizeGroup is
+                             meant for Auto (content-measured) columns kept in sync across grids
+                             - putting a "*" star column in one instead locks its width to
+                             whatever the shared-size discovery pass measured it at, defeating
+                             the whole point of "*" (fill whatever's left) and leaving it stuck
+                             far narrower than the actual available width. The other four
+                             columns are already synced, so this one's leftover width lines up
+                             across the header/rows/footer on its own regardless. -->
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="120" SharedSizeGroup="DinRailModules" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="DinRailRemove" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="2" Content="{x:Static res:Strings.DinRailTab_AddRowButton}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left" />
+                    <StackPanel Grid.Column="3" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                        <TextBlock Text="{x:Static res:Strings.DinRailTab_ModulesColumnHeader}" FontWeight="Bold" Margin="4,0" />
+                        <TextBlock Text="{Binding TotalModulesText}" Opacity="0.65" FontSize="11" VerticalAlignment="Top" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Global settings shared by every row in the strip. -->
+                <WrapPanel>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.TextTab_FontLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding FontFamilies}" SelectedItem="{Binding SelectedFontFamily}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.TextTab_StyleLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Styles}" SelectedItem="{Binding SelectedStyle}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.Common_AlignLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Aligns}" SelectedItem="{Binding SelectedAlign}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DinRailTab_SizingLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Sizings}" SelectedItem="{Binding SelectedSizing}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <CheckBox Content="{x:Static res:Strings.TextTab_UppercaseCheckbox}" IsChecked="{Binding UpperCase}" MinWidth="210" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.DinRailTab_SeparatorsCheckbox}" IsChecked="{Binding ShowSeparators}" MinWidth="210" Margin="0,0,16,10" />
+                </WrapPanel>
+
+                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                     upscale, same as TextTabView; only the (possibly long) length axis scrolls. -->
+                <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">
+                    <suki:BusyArea IsBusy="{Binding IsPreviewLoading}">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <Image Source="{Binding PreviewBitmap}" Stretch="None" VerticalAlignment="Center" Margin="4" />
+                        </ScrollViewer>
+                    </suki:BusyArea>
+                </Border>
+
+                <!-- The "sizeNote" touch: shows the whole strip's total physical printed length. -->
+                <TextBlock Text="{Binding SizeNoteText}" HorizontalAlignment="Center" Opacity="0.7" FontSize="12" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,10,0,0">
+            <Button Content="{x:Static res:Strings.Common_Preview}" Command="{Binding PreviewCommand}" />
+            <Button Content="{x:Static res:Strings.Common_Print}" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

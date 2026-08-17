@@ -10,17 +10,19 @@ public partial class HistoryTabViewModel : ViewModelBase
     private readonly PrintHistoryService _historyService;
     private readonly TextTabViewModel _text;
     private readonly BarcodeTabViewModel _barcode;
+    private readonly DinRailTabViewModel _dinRail;
     private readonly Action<int> _selectTab;
 
     public ObservableCollection<HistoryEntry> Entries => _historyService.Entries;
 
     public bool HasEntries => Entries.Count > 0;
 
-    public HistoryTabViewModel(PrintHistoryService historyService, TextTabViewModel text, BarcodeTabViewModel barcode, Action<int> selectTab)
+    public HistoryTabViewModel(PrintHistoryService historyService, TextTabViewModel text, BarcodeTabViewModel barcode, DinRailTabViewModel dinRail, Action<int> selectTab)
     {
         _historyService = historyService;
         _text = text;
         _barcode = barcode;
+        _dinRail = dinRail;
         _selectTab = selectTab;
 
         Entries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasEntries));
@@ -43,6 +45,10 @@ public partial class HistoryTabViewModel : ViewModelBase
             case HistoryKind.Barcode when entry.BarcodeParams != null:
                 _barcode.LoadFrom(entry.BarcodeParams);
                 _selectTab(MainViewModel.BarcodeTabIndex);
+                break;
+            case HistoryKind.DinRail when entry.DinRailParams != null:
+                _dinRail.LoadFrom(entry.DinRailParams);
+                _selectTab(MainViewModel.DinRailTabIndex);
                 break;
         }
     }

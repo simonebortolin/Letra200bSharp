@@ -309,9 +309,9 @@ namespace Letra200bSharp
         /// <returns>Rotated version of the SKBitmap object</returns>
         private static SKBitmap RotateBitmap(SKBitmap bitmap, float degrees)
         {
-            double radians = Math.PI * degrees / 180;
-            float sine = (float)Math.Abs(Math.Sin(radians));
-            float cosine = (float)Math.Abs(Math.Cos(radians));
+            float radians = MathF.PI * degrees / 180;
+            float sine = MathF.Abs(MathF.Sin(radians));
+            float cosine = MathF.Abs(MathF.Cos(radians));
             int originalWidth = bitmap.Width;
             int originalHeight = bitmap.Height;
             int rotatedWidth = (int)(cosine * originalWidth + sine * originalHeight);
@@ -378,7 +378,7 @@ namespace Letra200bSharp
         public static List<byte[]> CreateJob(byte[] imageBytes, bool noCut = false, bool preRendered = false)
         {
             var imageInfo = PrepareImage(imageBytes, noCut, preRendered);
-            byte[] packedData = new byte[(int)Math.Ceiling(imageInfo.Data.Length / 8.0)];
+            byte[] packedData = new byte[(int)MathF.Ceiling(imageInfo.Data.Length / 8f)];
             for (int i = 0; i < imageInfo.Data.Length; i++)
             {
                 if (imageInfo.Data[i] == 1)
@@ -466,6 +466,292 @@ namespace Letra200bSharp
             TextAlign.Right => 1f,
             _ => 0f
         };
+
+        /// <summary>Width, in millimeters, of one DIN rail mounting module (EN 50022 terminal block pitch).</summary>
+        public const float DinRailModuleWidthMm = 18f;
+
+        /// <summary>
+        /// Feed-axis (label length) pixel pitch, in pixels per millimeter. Empirically
+        /// calibrated against real printouts rather than derived from the printer's protocol
+        /// docs or theoretical estimates (both of which turned out wrong - see below):
+        /// - 1st pass: at the original theoretical estimate (5 px/mm, from "feed-axis dots are
+        ///   physically twice the size of head-axis dots"), a 1-module (18 mm) and a 2-module
+        ///   (36 mm) DIN rail label measured 7 mm and 14 mm long instead - consistently 7/18 of
+        ///   the intended length - giving a corrected estimate of 5 * 18/7 = 90/7 px/mm.
+        /// - 2nd pass: printing at that 90/7 px/mm estimate (231 px for 1 module) measured
+        ///   18.5 mm instead of the intended 18 mm - i.e. the real pitch is 18.5/231 mm/px, so
+        ///   the correct px/mm is its reciprocal, 231/18.5 = 462/37.
+        /// </summary>
+        private const float FeedAxisPixelsPerMm = 462f / 37f;
+
+        /// <summary>Physical printed length, in millimeters, of a DIN rail label spanning <paramref name="modules"/> modules.</summary>
+        public static float DinRailLengthMm(decimal modules) => (float)modules * DinRailModuleWidthMm;
+
+        /// <summary>Feed-axis pixel width corresponding to <see cref="DinRailLengthMm"/>.</summary>
+        public static int DinRailWidthPixels(decimal modules) => Math.Max(1, (int)MathF.Round(DinRailLengthMm(modules) * FeedAxisPixelsPerMm));
+
+        /// <summary>
+        /// How each DIN rail segment's text is sized - see <see cref="RenderDinRailRowImage"/>.
+        /// Neither mode ever stretches or squeezes glyphs non-uniformly (no distortion) - both
+        /// only ever apply a single uniform scale factor (equally in X and Y), same as scaling a
+        /// photo without changing its aspect ratio.
+        /// </summary>
+        public enum DinRailSizing
+        {
+            /// <summary>Every segment in the row uses the same font scale - whichever is the smallest scale any single segment actually needs - so the whole strip reads at one consistent size.</summary>
+            Uniform,
+            /// <summary>Each segment independently uses the largest scale that fits its own text.</summary>
+            MaxPerLabel
+        }
+
+        private static int DecodeWidth(byte[] image)
+        {
+            using (var bitmap = SKBitmap.Decode(image))
+            {
+                return bitmap.Width;
+            }
+        }
+
+        /// <summary>
+        /// Below this required scale (target width / natural width), a single line is considered
+        /// cramped enough that <see cref="RenderDinRailSegmentNatural"/> will look for a two-line
+        /// wrap instead. A one-line render that already only needs light shrinking (e.g. 90% of
+        /// natural size) reads perfectly fine on its own - wrapping it would just split it into
+        /// two lines each with less height to work with, for no real benefit, so wrapping is only
+        /// worth it once one line would otherwise be squeezed a lot.
+        /// </summary>
+        private const float DinRailWrapConsiderationThreshold = 0.6f;
+
+        /// <summary>
+        /// Renders <paramref name="text"/> at its natural, undistorted size - always
+        /// <c>widthScale = 1</c>, so glyphs keep their normal proportions - auto-wrapping onto
+        /// two lines at a word boundary (whichever split measures narrowest) instead, but only
+        /// when staying on one line would need heavy shrinking to fit <paramref name="wrapTargetWidthPx"/>
+        /// (see <see cref="DinRailWrapConsiderationThreshold"/>) and a wrap actually improves on
+        /// that. The result can still end up wider than <paramref name="wrapTargetWidthPx"/> (e.g.
+        /// one long word that can't be split, or wrapping not being enough on its own) - callers
+        /// scale the whole image down uniformly afterward if needed (see <see cref="RenderDinRailRowImage"/>),
+        /// which is what keeps the 1:1 aspect ratio intact instead of stretching only the width.
+        /// Renders at <see cref="LabelTextSize.XL"/> (edge-to-edge, no blank margin around the
+        /// glyphs) rather than the Text tab's usual size presets - the padding ratio doesn't
+        /// change how wide the natural rendering ends up (it scales height and width the same
+        /// way, so it cancels out once everything is fit to the target height), but it does
+        /// change how much of that width is actual glyph ink versus blank margin; DIN segments
+        /// are already tightly space-constrained, so giving the glyphs the full share keeps them
+        /// bolder/more legible once a segment needs to be scaled down (and separators, when on,
+        /// already carve out their own small gap - see <see cref="DinRailSeparatorWidthPx"/>). A
+        /// blank/whitespace-only row (used as a spacer) renders as a minimal blank image.
+        /// </summary>
+        private static byte[] RenderDinRailSegmentNatural(string text, string fontFamily, TextStyle style, bool upperCase, TextAlign align, int wrapTargetWidthPx, bool noCut)
+        {
+            int targetHeight = noCut ? 32 : 30;
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                using (var blank = new SKBitmap(1, targetHeight))
+                {
+                    using (var canvas = new SKCanvas(blank))
+                    {
+                        canvas.Clear(SKColors.White);
+                    }
+
+                    using (var image = SKImage.FromBitmap(blank))
+                    using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                    {
+                        return encoded.ToArray();
+                    }
+                }
+            }
+
+            byte[] oneLineImage = RenderTextImage(text, fontFamily, LabelTextSize.XL, style, upperCase, 1f, TextBoxStyle.None, align, noCut);
+            if (!text.Contains(' '))
+            {
+                return oneLineImage;
+            }
+
+            int oneLineWidth = DecodeWidth(oneLineImage);
+            float oneLineScale = Math.Min(1f, wrapTargetWidthPx / (float)oneLineWidth);
+            if (oneLineScale >= DinRailWrapConsiderationThreshold)
+            {
+                // Already fits, or only needs light shrinking - not worth splitting into two
+                // shorter (and therefore individually smaller) lines.
+                return oneLineImage;
+            }
+
+            byte[] bestImage = oneLineImage;
+            int bestWidth = oneLineWidth;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] != ' ')
+                {
+                    continue;
+                }
+
+                string candidate = text.Substring(0, i) + "\n" + text.Substring(i + 1);
+                byte[] candidateImage = RenderTextImage(candidate, fontFamily, LabelTextSize.XL, style, upperCase, 1f, TextBoxStyle.None, align, noCut);
+                int candidateWidth = DecodeWidth(candidateImage);
+                if (candidateWidth < bestWidth)
+                {
+                    bestWidth = candidateWidth;
+                    bestImage = candidateImage;
+                }
+            }
+
+            return bestImage;
+        }
+
+        /// <summary>
+        /// Estimates how much a DIN rail segment's text would need to shrink to fit
+        /// <paramref name="modules"/> modules (see <see cref="DinRailWidthPixels"/>) - 1.0 means
+        /// it already fits (or has room to spare), lower means it needs shrinking (see
+        /// <see cref="RenderDinRailRowImage"/>). Meant for UI feedback (e.g. warning the user a
+        /// label is too long for its module count to stay legible) rather than for the actual
+        /// rendering pipeline, so it ignores the couple of pixels a separator line would carve
+        /// out of the segment.
+        /// </summary>
+        public static float DinRailRequiredScale(string text, string fontFamily, TextStyle style, bool upperCase, TextAlign align, decimal modules, bool noCut = false)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return 1f;
+            }
+
+            int targetWidthPx = DinRailWidthPixels(modules);
+            byte[] naturalImage = RenderDinRailSegmentNatural(text, fontFamily, style, upperCase, align, targetWidthPx, noCut);
+            int naturalWidth = DecodeWidth(naturalImage);
+            return naturalWidth <= targetWidthPx ? 1f : targetWidthPx / (float)naturalWidth;
+        }
+
+        /// <summary>How many feed-axis pixels a printed separator line between two adjacent DIN rail segments takes up.</summary>
+        private const int DinRailSeparatorWidthPx = 2;
+
+        /// <summary>
+        /// Composes <paramref name="rows"/> into a single continuous DIN rail strip image, one
+        /// segment per row (see <see cref="DinRailWidthPixels"/> for each row's segment width),
+        /// drawn left to right into one bitmap. Each row's text is rendered at its natural,
+        /// undistorted size (see <see cref="RenderDinRailSegmentNatural"/>) and then, only if it
+        /// doesn't already fit, scaled down - uniformly in both directions, never stretched - by
+        /// whatever factor <paramref name="sizing"/> calls for (see <see cref="DinRailSizing"/>),
+        /// then centered vertically and aligned horizontally (<paramref name="align"/>) within its
+        /// segment. When <paramref name="showSeparators"/> is set, a thin vertical line is printed
+        /// at the boundary between each pair of adjacent segments, carved out of the earlier
+        /// segment's own available width rather than added on top of it, so segment widths always
+        /// still sum to the requested total physical length.
+        /// </summary>
+        private static byte[] RenderDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut)
+        {
+            int targetHeight = noCut ? 32 : 30;
+            float alignFactor = AlignFactor(align);
+
+            var segmentWidths = new int[rows.Count];
+            var naturalImages = new byte[rows.Count][];
+            var naturalWidths = new int[rows.Count];
+            var requiredScales = new float[rows.Count];
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                segmentWidths[i] = DinRailWidthPixels(rows[i].Modules);
+                bool drawSeparatorAfter = showSeparators && i < rows.Count - 1;
+                int textWidthPx = Math.Max(1, segmentWidths[i] - (drawSeparatorAfter ? DinRailSeparatorWidthPx : 0));
+
+                naturalImages[i] = RenderDinRailSegmentNatural(rows[i].Text, fontFamily, style, upperCase, align, textWidthPx, noCut);
+                naturalWidths[i] = DecodeWidth(naturalImages[i]);
+                requiredScales[i] = string.IsNullOrWhiteSpace(rows[i].Text) || naturalWidths[i] <= textWidthPx
+                    ? 1f
+                    : textWidthPx / (float)naturalWidths[i];
+            }
+
+            float uniformScale = requiredScales.Where((_, i) => !string.IsNullOrWhiteSpace(rows[i].Text)).DefaultIfEmpty(1f).Min();
+
+            var segments = new List<SKBitmap>();
+            try
+            {
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    float scale = sizing == DinRailSizing.Uniform ? uniformScale : requiredScales[i];
+                    bool drawSeparatorAfter = showSeparators && i < rows.Count - 1;
+
+                    var segmentBitmap = new SKBitmap(segmentWidths[i], targetHeight);
+                    using (var naturalBitmap = SKBitmap.Decode(naturalImages[i]))
+                    using (var canvas = new SKCanvas(segmentBitmap))
+                    {
+                        canvas.Clear(SKColors.White);
+
+                        int scaledWidth = Math.Max(1, (int)MathF.Round(naturalBitmap.Width * scale));
+                        int scaledHeight = Math.Max(1, (int)MathF.Round(naturalBitmap.Height * scale));
+                        using (var scaledBitmap = Math.Abs(scale - 1f) < 0.001f
+                            ? null
+                            : naturalBitmap.Resize(new SKImageInfo(scaledWidth, scaledHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
+                        {
+                            var toDraw = scaledBitmap ?? naturalBitmap;
+                            float x = (segmentWidths[i] - toDraw.Width) * alignFactor;
+                            float y = (targetHeight - toDraw.Height) / 2f;
+                            canvas.DrawBitmap(toDraw, x, y, SKSamplingOptions.Default);
+                        }
+
+                        if (drawSeparatorAfter)
+                        {
+                            using (var separatorPaint = new SKPaint { Color = SKColors.Black, IsAntialias = false })
+                            {
+                                canvas.DrawRect(new SKRect(segmentWidths[i] - DinRailSeparatorWidthPx, 0, segmentWidths[i], targetHeight), separatorPaint);
+                            }
+                        }
+                    }
+
+                    segments.Add(segmentBitmap);
+                }
+
+                int totalWidth = Math.Max(segments.Sum(s => s.Width), 1);
+                using (var finalBitmap = new SKBitmap(totalWidth, targetHeight))
+                {
+                    using (var canvas = new SKCanvas(finalBitmap))
+                    {
+                        canvas.Clear(SKColors.White);
+                        int x = 0;
+                        foreach (var segment in segments)
+                        {
+                            canvas.DrawBitmap(segment, x, 0, SKSamplingOptions.Default);
+                            x += segment.Width;
+                        }
+                    }
+
+                    using (var image = SKImage.FromBitmap(finalBitmap))
+                    using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                    {
+                        return encoded.ToArray();
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var segment in segments)
+                {
+                    segment.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renders <paramref name="rows"/> as one continuous DIN rail strip (see <see cref="RenderDinRailRowImage"/>)
+        /// and prints it, reusing the same <see cref="CreateJob(byte[], bool, bool)"/> pipeline via <c>preRendered</c>.
+        /// </summary>
+        /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
+        public static List<byte[]> CreateDinRailRowJob(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut = false)
+        {
+            byte[] imageBytes = RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut);
+            return CreateJob(imageBytes, noCut, preRendered: true);
+        }
+
+        /// <summary>
+        /// Renders a PNG preview of what <see cref="CreateDinRailRowJob"/> would print for the
+        /// same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
+        /// </summary>
+        /// <returns>PNG-encoded bytes of the rendered label</returns>
+        public static byte[] PreviewDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut = false)
+        {
+            byte[] imageBytes = RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut);
+            return PreviewImage(imageBytes, noCut, preRendered: true);
+        }
 
         /// <summary>
         /// Font weight/effect options offered by the real Dymo LetraTag app.
@@ -614,9 +900,18 @@ namespace Letra200bSharp
                 float lineGap = 0f;
                 if (lines.Length == 2)
                 {
-                    verticalPadding = 0f;
                     int targetPerLine = GetTwoLineHeight(size);
                     int targetGapPixels = Math.Clamp(targetHeight - 2 * targetPerLine, 0, targetHeight - 1);
+                    if (size == LabelTextSize.XL)
+                    {
+                        // XL is the size DIN Rail's auto-wrap always renders at (see
+                        // RenderDinRailSegmentNatural) - its gap felt too roomy there, so pin it
+                        // to a small fixed pixel target instead of the tuned-for-Text-tab
+                        // formula above. Scoped to XL only so Text tab's manually-typed
+                        // Line1/Line2 at the other sizes (already tuned/confirmed - see below)
+                        // stays exactly as it was.
+                        targetGapPixels = 0;
+                    }
                     // Solve for the pre-scale gap that becomes targetGapPixels after the
                     // final uniform resize-to-targetHeight step below (scale = targetHeight /
                     // (2*lineHeight + lineGap)); algebraically:
@@ -624,6 +919,15 @@ namespace Letra200bSharp
                     lineGap = targetGapPixels <= 0
                         ? 0f
                         : targetGapPixels * 2f * lineHeight / (targetHeight - targetGapPixels);
+                    // A hair of top/bottom margin (~1.5 final pixels - same factor as
+                    // DrawTextBox's verticalMargin below) so ascenders/descenders never land
+                    // exactly on the printer's physically unprintable first/last row (see
+                    // PreviewImage's remarks) - without this, the zero-margin 2-line layout can
+                    // clip the top of an ascender or the tail of a descender right off. A flat
+                    // ~1 final pixel isn't quite enough: rounding the raw height up (Ceiling
+                    // below) to fit a whole pixel grid shaves a bit back off the final scaled
+                    // margin, so 1.5 leaves enough slack to actually land clear of the edge.
+                    verticalPadding = (2f * lineHeight + lineGap) / targetHeight * 1.5f;
                 }
                 // ascent/descent reserve room for diacritics and descenders the text may not
                 // actually use, so measuring padding against them left visible slack even at
@@ -649,14 +953,19 @@ namespace Letra200bSharp
                 }
                 else
                 {
-                    verticalPadding = contentHeight * paddingRatio;
+                    // Same reasoning as the 2-line branch's margin above: even at paddingRatio 0
+                    // (LabelTextSize.XL, "fill the entire height") there needs to be a hair of
+                    // clearance (~1.5 final pixels) so a descender/ascender doesn't land exactly
+                    // on the printer's physically unprintable first/last row - XL's own ratio
+                    // only wins out once it would already give more room than that.
+                    verticalPadding = Math.Max(contentHeight * paddingRatio, contentHeight / targetHeight * 1.5f);
                     verticalShift = verticalPadding - unpaddedContentTop;
                 }
 
-                int width = (int)Math.Ceiling(maxLineWidth + horizontalPadding * 2 + shadowOffset);
+                int width = (int)MathF.Ceiling(maxLineWidth + horizontalPadding * 2 + shadowOffset);
                 int height = lines.Length == 2
-                    ? (int)Math.Ceiling(lineHeight * lines.Length + lineGap * (lines.Length - 1) + verticalPadding * 2 + shadowOffset)
-                    : (int)Math.Ceiling(contentHeight + verticalPadding * 2 + shadowOffset);
+                    ? (int)MathF.Ceiling(lineHeight * lines.Length + lineGap * (lines.Length - 1) + verticalPadding * 2 + shadowOffset)
+                    : (int)MathF.Ceiling(contentHeight + verticalPadding * 2 + shadowOffset);
 
                 using (var bitmap = new SKBitmap(Math.Max(width, 1), Math.Max(height, 1)))
                 {
@@ -701,7 +1010,7 @@ namespace Letra200bSharp
                         // head-axis/feed-axis physical pixel size correction as PrepareBitmap:
                         // targetHeight pixels here become head-axis dots, each twice the
                         // physical size of a feed-axis (scaledHeight) dot.
-                        int scaledHeight = Math.Max((int)Math.Round(2 * targetHeight * ((float)bitmap.Height / bitmap.Width)), 1);
+                        int scaledHeight = Math.Max((int)MathF.Round(2 * targetHeight * ((float)bitmap.Height / bitmap.Width)), 1);
                         using (var scaledBitmap = bitmap.Resize(new SKImageInfo(targetHeight, scaledHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
                         {
                             // Pre-rotate 90° so the image ends up in the landscape
@@ -718,7 +1027,7 @@ namespace Letra200bSharp
                         // become head-axis dots, each twice the physical size of a feed-axis
                         // (scaledWidth) dot, so a naive aspect-preserving resize (without the
                         // *2) would render glyphs visibly squashed once printed.
-                        int scaledWidth = Math.Max((int)Math.Round(2 * targetHeight * ((float)bitmap.Width / bitmap.Height)), 1);
+                        int scaledWidth = Math.Max((int)MathF.Round(2 * targetHeight * ((float)bitmap.Width / bitmap.Height)), 1);
                         finalBitmap = bitmap.Resize(new SKImageInfo(scaledWidth, targetHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
                     }
 
@@ -790,7 +1099,7 @@ namespace Letra200bSharp
         /// </summary>
         private static void DrawZigzagBox(SKCanvas canvas, SKPaint paint, SKRect rect, float toothSpan, float amplitude)
         {
-            int toothCount = Math.Max((int)Math.Round(rect.Width / toothSpan), 2);
+            int toothCount = Math.Max((int)MathF.Round(rect.Width / toothSpan), 2);
             float toothWidth = rect.Width / toothCount;
 
             var pathBuilder = new SKPathBuilder();

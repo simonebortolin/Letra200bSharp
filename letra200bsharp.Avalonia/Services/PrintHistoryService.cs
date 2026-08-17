@@ -8,7 +8,8 @@ public enum HistoryKind
 {
     Image,
     Text,
-    Barcode
+    Barcode,
+    DinRail
 }
 
 /// <summary>Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.</summary>
@@ -26,10 +27,23 @@ public sealed record TextHistoryParams(
 /// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
 public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut, bool ShowNumber = false);
 
+/// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
+public sealed record DinRailRowParams(string Text, decimal Modules);
+
+/// <summary>Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.</summary>
+public sealed record DinRailHistoryParams(
+    IReadOnlyList<DinRailRowParams> Rows,
+    string? FontFamily,
+    string Style,
+    bool UpperCase,
+    string Align,
+    string Sizing,
+    bool ShowSeparators);
+
 /// <summary>
 /// One past print job. <see cref="ThumbnailPng"/> is the same PNG bytes <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/>
-/// already produces for the tab's live preview, so it stays tiny. Only Text and Barcode jobs
-/// carry enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>) -
+/// already produces for the tab's live preview, so it stays tiny. Only Text, Barcode and DIN
+/// Rail jobs carry enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="DinRailParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large
 /// photo), so it shows up in history for reference only.
 /// </summary>
@@ -40,10 +54,11 @@ public sealed record HistoryEntry(
     string Summary,
     byte[] ThumbnailPng,
     TextHistoryParams? TextParams = null,
-    BarcodeHistoryParams? BarcodeParams = null)
+    BarcodeHistoryParams? BarcodeParams = null,
+    DinRailHistoryParams? DinRailParams = null)
 {
     [JsonIgnore]
-    public bool CanReprint => TextParams != null || BarcodeParams != null;
+    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null;
 }
 
 /// <summary>

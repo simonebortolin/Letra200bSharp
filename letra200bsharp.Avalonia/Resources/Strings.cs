@@ -35,6 +35,7 @@ public static class Strings
     public static string MainView_ImageTabHeader => Get(nameof(MainView_ImageTabHeader));
     public static string MainView_TextTabHeader => Get(nameof(MainView_TextTabHeader));
     public static string MainView_BarcodeTabHeader => Get(nameof(MainView_BarcodeTabHeader));
+    public static string MainView_DinRailTabHeader => Get(nameof(MainView_DinRailTabHeader));
     public static string MainView_HistoryTabHeader => Get(nameof(MainView_HistoryTabHeader));
     public static string MainView_AboutTabHeader => Get(nameof(MainView_AboutTabHeader));
     public static string MainView_StatsToggleButtonTooltip => Get(nameof(MainView_StatsToggleButtonTooltip));
@@ -64,6 +65,19 @@ public static class Strings
     public static string TextTab_Line1LabelSingle => Get(nameof(TextTab_Line1LabelSingle));
     public static string TextTab_Line1LabelWithLine2 => Get(nameof(TextTab_Line1LabelWithLine2));
     public static string TextTab_NoTextEntered => Get(nameof(TextTab_NoTextEntered));
+
+    public static string DinRailTab_SizeNoteFormat => Get(nameof(DinRailTab_SizeNoteFormat));
+    public static string DinRailTab_NoTextEntered => Get(nameof(DinRailTab_NoTextEntered));
+    public static string DinRailTab_TextColumnHeader => Get(nameof(DinRailTab_TextColumnHeader));
+    public static string DinRailTab_TextPlaceholder => Get(nameof(DinRailTab_TextPlaceholder));
+    public static string DinRailTab_ModulesColumnHeader => Get(nameof(DinRailTab_ModulesColumnHeader));
+    public static string DinRailTab_TotalModulesFormat => Get(nameof(DinRailTab_TotalModulesFormat));
+    public static string DinRailTab_AddRowButton => Get(nameof(DinRailTab_AddRowButton));
+    public static string DinRailTab_RemoveRowTooltip => Get(nameof(DinRailTab_RemoveRowTooltip));
+    public static string DinRailTab_DragHandleTooltip => Get(nameof(DinRailTab_DragHandleTooltip));
+    public static string DinRailTab_SeparatorsCheckbox => Get(nameof(DinRailTab_SeparatorsCheckbox));
+    public static string DinRailTab_SizingLabel => Get(nameof(DinRailTab_SizingLabel));
+    public static string DinRailTab_TooSmallWarning => Get(nameof(DinRailTab_TooSmallWarning));
 
     public static string BarcodeTab_DataLabel => Get(nameof(BarcodeTab_DataLabel));
     public static string BarcodeTab_DataPlaceholder => Get(nameof(BarcodeTab_DataPlaceholder));

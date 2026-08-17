@@ -16,8 +16,9 @@ public partial class MainViewModel : ViewModelBase
     public const int ImageTabIndex = 0;
     public const int TextTabIndex = 1;
     public const int BarcodeTabIndex = 2;
-    public const int HistoryTabIndex = 3;
-    public const int AboutTabIndex = 4;
+    public const int DinRailTabIndex = 3;
+    public const int HistoryTabIndex = 4;
+    public const int AboutTabIndex = 5;
 
     public ObservableCollection<BluetoothDevice> Devices { get; } = new();
 
@@ -73,6 +74,7 @@ public partial class MainViewModel : ViewModelBase
     public ImageTabViewModel Image { get; }
     public TextTabViewModel Text { get; }
     public BarcodeTabViewModel Barcode { get; }
+    public DinRailTabViewModel DinRail { get; }
     public HistoryTabViewModel History { get; }
     public AboutTabViewModel About { get; }
 
@@ -81,7 +83,8 @@ public partial class MainViewModel : ViewModelBase
         Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Image", result));
         Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Text", result));
         Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Barcode", result));
-        History = new HistoryTabViewModel(_historyService, Text, Barcode, index => SelectedTabIndex = index);
+        DinRail = new DinRailTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("DinRail", result));
+        History = new HistoryTabViewModel(_historyService, Text, Barcode, DinRail, index => SelectedTabIndex = index);
         About = new AboutTabViewModel();
 
         _ = RefreshDevicesAsync();
