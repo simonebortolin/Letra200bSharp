@@ -24,7 +24,7 @@ public sealed record TextHistoryParams(
     string Align = "Left");
 
 /// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
-public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut);
+public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut, bool ShowNumber = false);
 
 /// <summary>
 /// One past print job. <see cref="ThumbnailPng"/> is the same PNG bytes <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/>

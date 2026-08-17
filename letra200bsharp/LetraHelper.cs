@@ -862,17 +862,71 @@ namespace Letra200bSharp
         private const int BarcodeModuleScale = 2;
 
         /// <summary>
-        /// Renders <paramref name="data"/> as a black-on-white, bars-only barcode (no human
-        /// readable digits underneath, unlike the real Dymo app) using ZXing.Net, sized so its
-        /// module rows exactly match the printer's fixed printable height (30, or 32 if
+        /// Font the optional barcode-number caption (see <see cref="RenderBarcodeImage"/>) is
+        /// always printed in - deliberately fixed rather than exposed as a picker like the Text
+        /// tab's font combo, since it's meant to stay a small, secondary caption rather than
+        /// become the label's main content.
+        /// </summary>
+        private const string BarcodeNumberFontFamily = "Arial";
+
+        /// <summary>
+        /// Fraction of the printable height given to the optional barcode-number caption (see
+        /// <see cref="RenderBarcodeImage"/>) - kept small ("the smallest size possible") since
+        /// the bars are the actual scannable payload and the number is just a human-readable
+        /// aid; the rest of the height goes to the bars themselves.
+        /// </summary>
+        private const float BarcodeNumberHeightRatio = 0.2f;
+
+        /// <summary>
+        /// Blank row(s) between the bars and the number caption (see <see cref="RenderBarcodeImage"/>) -
+        /// scoped to just that boundary, not extra margin around the whole barcode.
+        /// </summary>
+        private const int BarcodeNumberGapPx = 1;
+
+        /// <summary>
+        /// Renders <paramref name="data"/> at the smallest legible height, bold, in
+        /// <see cref="BarcodeNumberFontFamily"/> - the caption printed under the bars when
+        /// <see cref="RenderBarcodeImage"/>'s <c>showNumber</c> is set.
+        /// </summary>
+        /// <param name="numberHeight">Final pixel height of the caption (see <see cref="BarcodeNumberHeightRatio"/>).</param>
+        private static SKBitmap RenderBarcodeNumberBitmap(string data, int numberHeight)
+        {
+            // Rendered through the normal text pipeline at full quality/height first (XL - no
+            // padding, glyphs get the full share of the height - and Bold), then scaled down as
+            // a whole to the small height actually reserved for it, same trick
+            // RenderDinRailSegmentNatural uses: keeps the digits' proportions correct instead of
+            // asking SkiaSharp's font layout to work at a height too small to be meaningful.
+            byte[] fullHeightPng = RenderTextImage(data, BarcodeNumberFontFamily, LabelTextSize.XL, TextStyle.Bold, upperCase: false, widthScale: 1f, TextBoxStyle.None, TextAlign.Center, noCut: false);
+            using (var fullHeightBitmap = SKBitmap.Decode(fullHeightPng))
+            {
+                int width = Math.Max(1, (int)MathF.Round(fullHeightBitmap.Width * (numberHeight / (float)fullHeightBitmap.Height)));
+                return fullHeightBitmap.Resize(new SKImageInfo(width, numberHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
+            }
+        }
+
+        /// <summary>
+        /// Renders <paramref name="data"/> as a black-on-white barcode using ZXing.Net, sized so
+        /// its module rows exactly match the printer's fixed printable height (30, or 32 if
         /// <paramref name="noCut"/>). Reuses <see cref="CreateJob(byte[], bool, bool)"/>'s
         /// <c>preRendered</c> path the same way <see cref="RenderTextImage"/> does.
         /// </summary>
+        /// <param name="showNumber">
+        /// Whether to print <paramref name="data"/> itself as a small caption below the bars
+        /// (see <see cref="RenderBarcodeNumberBitmap"/>) - unlike the real Dymo app, this is off
+        /// by default (bars only).
+        /// </param>
         /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/> (e.g. non-numeric EAN/UPC data, or the wrong digit count).</exception>
         /// <returns>PNG-encoded bytes of the rendered barcode</returns>
-        private static byte[] RenderBarcodeImage(string data, BarcodeSymbology symbology, bool noCut)
+        private static byte[] RenderBarcodeImage(string data, BarcodeSymbology symbology, bool showNumber, bool noCut)
         {
             int targetHeight = noCut ? 32 : 30;
+            // How tall a notch to leave for the number, once its column range is known below -
+            // not a height the bars themselves are ever encoded/resized to (see below: bars
+            // always render at the full targetHeight; only the width directly under the number
+            // gets cut down to make room for it, everywhere else stays full height).
+            int numberHeight = showNumber ? Math.Max(4, (int)MathF.Round(targetHeight * BarcodeNumberHeightRatio)) : 0;
+            int notchStartY = targetHeight - numberHeight;
+
             var hints = new Dictionary<EncodeHintType, object> { { EncodeHintType.PURE_BARCODE, true } };
 
             BitMatrix matrix;
@@ -882,6 +936,7 @@ namespace Letra200bSharp
                 // of 1, i.e. the natural, unstretched module width - scaled back up ourselves
                 // below via a crisp nearest-neighbor resize instead of letting ZXing do it, so
                 // that step matches the rest of this file's approach to keeping bars/edges sharp.
+                // Always the full targetHeight - see notchStartY above.
                 matrix = new MultiFormatWriter().encode(data, ToZXingFormat(symbology), 1, targetHeight, hints);
             }
             catch (Exception ex)
@@ -889,23 +944,62 @@ namespace Letra200bSharp
                 throw new ArgumentException($"'{data}' isn't valid {symbology} barcode data: {ex.Message}", nameof(data), ex);
             }
 
-            using (var bitmap = new SKBitmap(matrix.Width, matrix.Height))
+            using (var barsBitmap = new SKBitmap(matrix.Width, matrix.Height))
             {
                 for (int x = 0; x < matrix.Width; x++)
                 {
                     for (int y = 0; y < matrix.Height; y++)
                     {
-                        bitmap.SetPixel(x, y, matrix[x, y] ? SKColors.Black : SKColors.White);
+                        barsBitmap.SetPixel(x, y, matrix[x, y] ? SKColors.Black : SKColors.White);
                     }
                 }
 
-                using (var scaledBitmap = bitmap.Resize(
-                    new SKImageInfo(matrix.Width * BarcodeModuleScale, targetHeight),
-                    new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
-                using (var image = SKImage.FromBitmap(scaledBitmap))
-                using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                int barsWidth = matrix.Width * BarcodeModuleScale;
+                using (var scaledBars = barsBitmap.Resize(new SKImageInfo(barsWidth, targetHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
                 {
-                    return encoded.ToArray();
+                    if (!showNumber)
+                    {
+                        using (var image = SKImage.FromBitmap(scaledBars))
+                        using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                        {
+                            return encoded.ToArray();
+                        }
+                    }
+
+                    // A blank row between the bars and the number, carved out of the number's
+                    // own reserved height rather than added on top of it - only the number's own
+                    // area gets tighter to make room for the gap above it.
+                    int gapHeight = Math.Min(BarcodeNumberGapPx, numberHeight - 1);
+                    int textHeight = numberHeight - gapHeight;
+
+                    using (var numberBitmap = RenderBarcodeNumberBitmap(data, textHeight))
+                    {
+                        int finalWidth = Math.Max(barsWidth, numberBitmap.Width);
+                        float numberX = (finalWidth - numberBitmap.Width) / 2f;
+
+                        using (var finalBitmap = new SKBitmap(finalWidth, targetHeight))
+                        using (var canvas = new SKCanvas(finalBitmap))
+                        {
+                            canvas.Clear(SKColors.White);
+                            canvas.DrawBitmap(scaledBars, (finalWidth - barsWidth) / 2f, 0, SKSamplingOptions.Default);
+
+                            // Cut a notch only under the number's own width, so the bars stay
+                            // full height everywhere else - blank out whatever bars would
+                            // otherwise show through there before drawing the number over the
+                            // clear space.
+                            using (var notchPaint = new SKPaint { Color = SKColors.White, IsAntialias = false })
+                            {
+                                canvas.DrawRect(new SKRect(numberX, notchStartY, numberX + numberBitmap.Width, targetHeight), notchPaint);
+                            }
+                            canvas.DrawBitmap(numberBitmap, numberX, notchStartY + gapHeight, SKSamplingOptions.Default);
+
+                            using (var image = SKImage.FromBitmap(finalBitmap))
+                            using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                            {
+                                return encoded.ToArray();
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -913,23 +1007,24 @@ namespace Letra200bSharp
         /// <param name="data">The barcode's content (digits only for <see cref="BarcodeSymbology.Ean13"/>/<see cref="BarcodeSymbology.Ean8"/>/<see cref="BarcodeSymbology.UpcA"/>/<see cref="BarcodeSymbology.UpcE"/>, with the exact digit count each of those symbologies requires).</param>
         /// <param name="symbology">Which barcode symbology to encode <paramref name="data"/> as.</param>
         /// <param name="noCut">See <see cref="PrepareBitmap"/>.</param>
+        /// <param name="showNumber">See <see cref="RenderBarcodeImage"/>.</param>
         /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
         /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/>.</exception>
-        public static List<byte[]> CreateJob(string data, BarcodeSymbology symbology, bool noCut = false)
+        public static List<byte[]> CreateJob(string data, BarcodeSymbology symbology, bool noCut = false, bool showNumber = false)
         {
-            byte[] imageBytes = RenderBarcodeImage(data, symbology, noCut);
+            byte[] imageBytes = RenderBarcodeImage(data, symbology, showNumber, noCut);
             return CreateJob(imageBytes, noCut, preRendered: true);
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="CreateJob(string, BarcodeSymbology, bool)"/>
+        /// Renders a PNG preview of what <see cref="CreateJob(string, BarcodeSymbology, bool, bool)"/>
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image</returns>
         /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/>.</exception>
-        public static byte[] PreviewImage(string data, BarcodeSymbology symbology, bool noCut = false)
+        public static byte[] PreviewImage(string data, BarcodeSymbology symbology, bool noCut = false, bool showNumber = false)
         {
-            byte[] imageBytes = RenderBarcodeImage(data, symbology, noCut);
+            byte[] imageBytes = RenderBarcodeImage(data, symbology, showNumber, noCut);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
     }

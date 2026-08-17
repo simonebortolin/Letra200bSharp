@@ -139,6 +139,9 @@
   <data name="BarcodeTab_SymbologyLabel" xml:space="preserve">
     <value>Symbology:</value>
   </data>
+  <data name="BarcodeTab_ShowNumberCheckbox" xml:space="preserve">
+    <value>Show number</value>
+  </data>
 
   <data name="HistoryTab_NoPrintsYet" xml:space="preserve">
     <value>No prints yet.</value>

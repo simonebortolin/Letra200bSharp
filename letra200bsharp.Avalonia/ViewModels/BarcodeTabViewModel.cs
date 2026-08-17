@@ -28,6 +28,9 @@ public partial class BarcodeTabViewModel : ViewModelBase
     public partial bool NoCut { get; set; }
 
     [ObservableProperty]
+    public partial bool ShowNumber { get; set; }
+
+    [ObservableProperty]
     public partial Bitmap? PreviewBitmap { get; set; }
 
     [ObservableProperty]
@@ -50,6 +53,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
         Data = parameters.Data;
         SelectedSymbology = parameters.Symbology;
         NoCut = parameters.NoCut;
+        ShowNumber = parameters.ShowNumber;
 
         PreviewCommand.Execute(null);
     }
@@ -68,13 +72,14 @@ public partial class BarcodeTabViewModel : ViewModelBase
 
         var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
         var noCut = NoCut;
+        var showNumber = ShowNumber;
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewImage(data, symbology, noCut);
+                var previewBytes = LetraHelper.PreviewImage(data, symbology, noCut, showNumber);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -112,18 +117,19 @@ public partial class BarcodeTabViewModel : ViewModelBase
 
         var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
         var noCut = NoCut;
+        var showNumber = ShowNumber;
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(data, symbology, noCut));
+            var job = await Task.Run(() => LetraHelper.CreateJob(data, symbology, noCut, showNumber));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
             if (result.Printed)
             {
-                RecordHistory(data, symbology, noCut);
+                RecordHistory(data, symbology, noCut, showNumber);
             }
         }
         catch (Exception ex)
@@ -140,12 +146,12 @@ public partial class BarcodeTabViewModel : ViewModelBase
     /// Best-effort: a history-recording failure must never look like the print itself failed,
     /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
     /// </summary>
-    private void RecordHistory(string data, LetraHelper.BarcodeSymbology symbology, bool noCut)
+    private void RecordHistory(string data, LetraHelper.BarcodeSymbology symbology, bool noCut, bool showNumber)
     {
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(data, symbology, noCut);
-            var parameters = new BarcodeHistoryParams(data, SelectedSymbology, noCut);
+            var thumbnail = LetraHelper.PreviewImage(data, symbology, noCut, showNumber);
+            var parameters = new BarcodeHistoryParams(data, SelectedSymbology, noCut, showNumber);
             _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, $"{SelectedSymbology}: {data}", thumbnail, BarcodeParams: parameters));
         }
         catch

@@ -73,6 +73,9 @@ internal class BarcodeOptions
 
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered barcode already accounts for the printer's unprintable top/bottom row.")]
     public bool NoCut { get; set; }
+
+    [Option("show-number", HelpText = "Print the barcode's own data as a small caption below the bars (Arial Bold, the smallest legible size).")]
+    public bool ShowNumber { get; set; }
 }
 
 /// <summary>
@@ -187,7 +190,7 @@ internal static class Cli
     {
         try
         {
-            var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut);
+            var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut, o.ShowNumber);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

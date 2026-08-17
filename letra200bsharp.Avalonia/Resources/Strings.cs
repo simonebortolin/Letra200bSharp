@@ -68,6 +68,7 @@ public static class Strings
     public static string BarcodeTab_DataLabel => Get(nameof(BarcodeTab_DataLabel));
     public static string BarcodeTab_DataPlaceholder => Get(nameof(BarcodeTab_DataPlaceholder));
     public static string BarcodeTab_SymbologyLabel => Get(nameof(BarcodeTab_SymbologyLabel));
+    public static string BarcodeTab_ShowNumberCheckbox => Get(nameof(BarcodeTab_ShowNumberCheckbox));
     public static string BarcodeTab_NoDataEntered => Get(nameof(BarcodeTab_NoDataEntered));
 
     public static string HistoryTab_NoPrintsYet => Get(nameof(HistoryTab_NoPrintsYet));

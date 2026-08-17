@@ -20,6 +20,7 @@
                     <TextBlock Text="{x:Static res:Strings.BarcodeTab_SymbologyLabel}" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <ComboBox ItemsSource="{Binding Symbologies}" SelectedItem="{Binding SelectedSymbology}" Width="120" />
                     <CheckBox Content="{x:Static res:Strings.Common_NoCut}" Margin="16,0,0,0" IsChecked="{Binding NoCut}" />
+                    <CheckBox Content="{x:Static res:Strings.BarcodeTab_ShowNumberCheckbox}" Margin="16,0,0,0" IsChecked="{Binding ShowNumber}" />
                 </StackPanel>
 
                 <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
