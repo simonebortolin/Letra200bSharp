@@ -9,7 +9,28 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
-        AttachedToVisualTree += (_, _) => WireFilePicker();
+        AttachedToVisualTree += (_, _) =>
+        {
+            WireFilePicker();
+            WireLinkLauncher();
+        };
+    }
+
+    private void WireLinkLauncher()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        viewModel.About.OpenLinkAsync = async url =>
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.Launcher is { } launcher)
+            {
+                await launcher.LaunchUriAsync(new Uri(url));
+            }
+        };
     }
 
     private void WireFilePicker()

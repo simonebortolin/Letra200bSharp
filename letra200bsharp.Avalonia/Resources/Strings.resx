@@ -70,7 +70,7 @@
   </data>
 
   <data name="MainWindow_Title" xml:space="preserve">
-    <value>Letra200bSharp.Avalonia</value>
+    <value>Label Studio 200B</value>
   </data>
 
   <data name="MainView_DevicesLabel" xml:space="preserve">
@@ -90,6 +90,9 @@
   </data>
   <data name="MainView_HistoryTabHeader" xml:space="preserve">
     <value>History</value>
+  </data>
+  <data name="MainView_AboutTabHeader" xml:space="preserve">
+    <value>About</value>
   </data>
 
   <data name="ImageTab_ImageLabel" xml:space="preserve">
@@ -190,5 +193,24 @@
 
   <data name="BarcodeTab_NoDataEntered" xml:space="preserve">
     <value>No barcode data entered.</value>
+  </data>
+
+  <data name="AboutTab_Tagline" xml:space="preserve">
+    <value>C# library and app for printing labels to a Dymo LetraTag 200B over Bluetooth LE.</value>
+  </data>
+  <data name="AboutTab_VersionFormat" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="AboutTab_RepositoryLabel" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="AboutTab_LicenseLabel" xml:space="preserve">
+    <value>License (MIT)</value>
+  </data>
+  <data name="AboutTab_UsedLibrariesHeader" xml:space="preserve">
+    <value>Used libraries</value>
+  </data>
+  <data name="AboutTab_AcknowledgementsHeader" xml:space="preserve">
+    <value>Acknowledgements</value>
   </data>
 </root>

@@ -63,6 +63,9 @@
                     <TabItem Header="{x:Static res:Strings.MainView_HistoryTabHeader}">
                         <views:HistoryTabView DataContext="{Binding History}" />
                     </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_AboutTabHeader}">
+                        <views:AboutTabView DataContext="{Binding About}" />
+                    </TabItem>
                 </TabControl>
             </Grid>
 

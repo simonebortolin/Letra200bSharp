@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
+             xmlns:res="using:Letra200bSharp.Avalonia.Resources"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="560"
+             x:Class="Letra200bSharp.Avalonia.Views.AboutTabView"
+             x:Name="Root"
+             x:DataType="vm:AboutTabViewModel">
+    <!-- Reusable look for every clickable link row (used libraries, acknowledgements, and the
+         Repository/License buttons up top): a borderless, flush-left button so it reads as a
+         hyperlink rather than a UI action. Foreground is left alone - SukiUI already restyles
+         Button with its own theme-aware color (see App.axaml's remarks), so overriding it here
+         risks picking a color that doesn't track light/dark. -->
+    <UserControl.Styles>
+        <Style Selector="Button.Link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.Link:pointerover /template/ ContentPresenter">
+            <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer Margin="8">
+        <StackPanel Spacing="18" MaxWidth="560" HorizontalAlignment="Left">
+            <!-- App header: name, version, one-line tagline. -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding AppName}" FontSize="22" FontWeight="Bold" />
+                <TextBlock Text="{Binding AppVersion, StringFormat={x:Static res:Strings.AboutTab_VersionFormat}}" Opacity="0.6" FontSize="12" />
+                <TextBlock Text="{Binding AppTagline}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Button Classes="Link" Content="{x:Static res:Strings.AboutTab_RepositoryLabel}"
+                        Command="{Binding OpenLinkCommand}" CommandParameter="{Binding RepositoryUrl}" />
+                <Button Classes="Link" Content="{x:Static res:Strings.AboutTab_LicenseLabel}"
+                        Command="{Binding OpenLinkCommand}" CommandParameter="{Binding LicenseUrl}" />
+            </StackPanel>
+
+            <!-- Used libraries. -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="{x:Static res:Strings.AboutTab_UsedLibrariesHeader}" FontWeight="Bold" FontSize="14" />
+                <ItemsControl ItemsSource="{Binding Libraries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AboutLinkItem">
+                            <StackPanel Margin="0,0,0,8">
+                                <Button Classes="Link" Content="{Binding Name}" FontWeight="SemiBold"
+                                        Command="{Binding #Root.((vm:AboutTabViewModel)DataContext).OpenLinkCommand}"
+                                        CommandParameter="{Binding Url}" />
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Protocol reverse-engineering / fork acknowledgements. -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="{x:Static res:Strings.AboutTab_AcknowledgementsHeader}" FontWeight="Bold" FontSize="14" />
+                <ItemsControl ItemsSource="{Binding Acknowledgements}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AboutLinkItem">
+                            <StackPanel Margin="0,0,0,8">
+                                <Button Classes="Link" Content="{Binding Name}" FontWeight="SemiBold"
+                                        Command="{Binding #Root.((vm:AboutTabViewModel)DataContext).OpenLinkCommand}"
+                                        CommandParameter="{Binding Url}" />
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

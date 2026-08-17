@@ -17,6 +17,7 @@ public partial class MainViewModel : ViewModelBase
     public const int TextTabIndex = 1;
     public const int BarcodeTabIndex = 2;
     public const int HistoryTabIndex = 3;
+    public const int AboutTabIndex = 4;
 
     public ObservableCollection<BluetoothDevice> Devices { get; } = new();
 
@@ -73,6 +74,7 @@ public partial class MainViewModel : ViewModelBase
     public TextTabViewModel Text { get; }
     public BarcodeTabViewModel Barcode { get; }
     public HistoryTabViewModel History { get; }
+    public AboutTabViewModel About { get; }
 
     public MainViewModel()
     {
@@ -80,6 +82,7 @@ public partial class MainViewModel : ViewModelBase
         Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Text", result));
         Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Barcode", result));
         History = new HistoryTabViewModel(_historyService, Text, Barcode, index => SelectedTabIndex = index);
+        About = new AboutTabViewModel();
 
         _ = RefreshDevicesAsync();
     }

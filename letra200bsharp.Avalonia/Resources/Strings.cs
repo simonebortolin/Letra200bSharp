@@ -35,6 +35,7 @@ public static class Strings
     public static string MainView_TextTabHeader => Get(nameof(MainView_TextTabHeader));
     public static string MainView_BarcodeTabHeader => Get(nameof(MainView_BarcodeTabHeader));
     public static string MainView_HistoryTabHeader => Get(nameof(MainView_HistoryTabHeader));
+    public static string MainView_AboutTabHeader => Get(nameof(MainView_AboutTabHeader));
     public static string MainView_StatsToggleButtonTooltip => Get(nameof(MainView_StatsToggleButtonTooltip));
     public static string MainView_StatsPanelNoDataYet => Get(nameof(MainView_StatsPanelNoDataYet));
     public static string MainView_NoPrinterFound => Get(nameof(MainView_NoPrinterFound));
@@ -71,4 +72,11 @@ public static class Strings
     public static string HistoryTab_NoPrintsYet => Get(nameof(HistoryTab_NoPrintsYet));
     public static string HistoryTab_ReprintButton => Get(nameof(HistoryTab_ReprintButton));
     public static string HistoryTab_DeleteButton => Get(nameof(HistoryTab_DeleteButton));
+
+    public static string AboutTab_Tagline => Get(nameof(AboutTab_Tagline));
+    public static string AboutTab_VersionFormat => Get(nameof(AboutTab_VersionFormat));
+    public static string AboutTab_RepositoryLabel => Get(nameof(AboutTab_RepositoryLabel));
+    public static string AboutTab_LicenseLabel => Get(nameof(AboutTab_LicenseLabel));
+    public static string AboutTab_UsedLibrariesHeader => Get(nameof(AboutTab_UsedLibrariesHeader));
+    public static string AboutTab_AcknowledgementsHeader => Get(nameof(AboutTab_AcknowledgementsHeader));
 }

@@ -11,6 +11,10 @@
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
+    <!-- User-visible name (Task Manager, exe file properties) - AssemblyName/namespace stay
+         Letra200bSharp.* on purpose, this only changes what's shown to the user. -->
+    <Product>Label Studio 200B</Product>
+    <AssemblyTitle>Label Studio 200B</AssemblyTitle>
   </PropertyGroup>
 
   <ItemGroup>
