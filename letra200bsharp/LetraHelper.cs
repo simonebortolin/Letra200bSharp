@@ -49,6 +49,13 @@ namespace Letra200bSharp
         {
             var chunks = new List<byte[]>();
 
+            // The 1-byte sequence number prefixing each chunk must never be 0x1B (27):
+            // that's the same byte the printer's firmware uses to recognize the start of
+            // an ESC command, so a chunk sequenced 27 gets misread as a command instead of
+            // data, stalling the job. Skip 27 (and, once the counter wraps past 255, 283,
+            // etc.) the same way the reference protocol does.
+            byte sequence = 0;
+
             for (int i = 0; i < data.Length; i += chunkSize)
             {
                 int end = Math.Min(i + chunkSize, data.Length);
@@ -64,7 +71,12 @@ namespace Letra200bSharp
                     chunk = new byte[end - i + 1]; // No extra bytes
                 }
 
-                chunk[0] = (byte)(i / chunkSize);
+                if (sequence == 0x1B) // 27
+                {
+                    sequence++;
+                }
+                chunk[0] = sequence;
+                sequence++;
 
                 // Copy the relevant bytes to the chunk
                 for (int j = 0; j < end - i; j++)
