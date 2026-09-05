@@ -1,4 +1,6 @@
 <Project>
+  <Import Project="BuildVersion.props" />
+
   <PropertyGroup>
     <AvaloniaVersion>12.1.1</AvaloniaVersion>
   </PropertyGroup>

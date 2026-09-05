@@ -5,7 +5,15 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="BuildVersion.props" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
     <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Solution Items/Pipeline/">
+    <File Path=".github/ci.yml" />
+    <File Path=".github/dependabot.yml" />
   </Folder>
   <Folder Name="/Solution Items/Screenshot/">
     <File Path="Screenshot/Barcode1.png" />
@@ -21,10 +29,10 @@
     <File Path="Screenshot/Text3.png" />
     <File Path="Screenshot/Text4.png" />
   </Folder>
-  <Project Path="letra200bsharp.Avalonia.Android/Letra200bSharp.Avalonia.Android.csproj">
+  <Project Path="Letra200bSharp.Avalonia.Android/Letra200bSharp.Avalonia.Android.csproj">
     <Deploy Solution="*|Any CPU" />
   </Project>
-  <Project Path="letra200bsharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
-  <Project Path="letra200bsharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
-  <Project Path="letra200bsharp/Letra200bSharp.csproj" />
+  <Project Path="Letra200bSharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
+  <Project Path="Letra200bSharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
+  <Project Path="Letra200bSharp/Letra200bSharp.csproj" />
 </Solution>

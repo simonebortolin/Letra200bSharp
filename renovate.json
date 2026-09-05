@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["nuget"],
+  "schedule": ["* 0-6 * * 3"],
+  "packageRules": [
+    {
+      "matchManagers": ["nuget"],
+      "groupName": "dotnet dependencies",
+      "groupSlug": "dotnet"
+    }
+  ]
+}

@@ -1168,7 +1168,7 @@ namespace Letra200bSharp
         /// would make the narrowest bars a single pixel wide - technically correct but too thin
         /// to print/scan reliably.
         /// </summary>
-        private const int BarcodeModuleScale = 2;
+        private const int BarcodeModuleScale = 4;
 
         /// <summary>
         /// Font the optional barcode-number caption (see <see cref="RenderBarcodeImage"/>) is
