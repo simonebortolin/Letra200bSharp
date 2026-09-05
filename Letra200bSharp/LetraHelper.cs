@@ -1,6 +1,7 @@
 ﻿using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ZXing;
 using ZXing.Common;
@@ -1139,6 +1140,11 @@ namespace Letra200bSharp
         /// </summary>
         public enum BarcodeSymbology
         {
+            /// <summary>
+            /// Not a real symbology to encode with - resolved to a concrete one by
+            /// <see cref="ResolveAutoSymbology"/>, based on <c>data</c>'s shape, before rendering.
+            /// </summary>
+            Auto,
             Code128,
             Code39,
             Codabar,
@@ -1161,6 +1167,100 @@ namespace Letra200bSharp
             BarcodeSymbology.UpcE => BarcodeFormat.UPC_E,
             _ => throw new ArgumentOutOfRangeException(nameof(symbology))
         };
+
+        /// <summary>
+        /// GS1 mod-10 check digit validation shared by EAN-13, EAN-8 and UPC-A (and, via
+        /// <see cref="TryExpandUpcEToUpcA"/>, UPC-E): starting from the digit right before the
+        /// trailing check digit, weights alternate 3/1 going leftwards; the check digit is
+        /// whatever makes the weighted sum a multiple of 10.
+        /// </summary>
+        /// <param name="digits">All-numeric string, check digit included as the last character.</param>
+        private static bool HasValidMod10Checksum(string digits)
+        {
+            int payloadLength = digits.Length - 1;
+            int sum = 0;
+            for (int i = 0; i < payloadLength; i++)
+            {
+                int digit = digits[payloadLength - 1 - i] - '0';
+                sum += digit * (i % 2 == 0 ? 3 : 1);
+            }
+
+            int checkDigit = (10 - sum % 10) % 10;
+            return checkDigit == digits[payloadLength] - '0';
+        }
+
+        /// <summary>
+        /// Expands an 8-digit UPC-E code (number system + 6-digit compressed manufacturer/product
+        /// code + check digit) to its equivalent 12-digit UPC-A, per the standard suppressed-zero
+        /// table keyed on the compressed code's last digit. The result's own check digit is just
+        /// UPC-E's check digit carried across unchanged - <see cref="HasValidMod10Checksum"/>
+        /// still needs to be run on it to confirm it's actually correct.
+        /// </summary>
+        private static bool TryExpandUpcEToUpcA(string upcE, [NotNullWhen(true)] out string? upcA)
+        {
+            upcA = null;
+            if (upcE.Length != 8 || (upcE[0] != '0' && upcE[0] != '1'))
+                return false;
+
+            char numberSystem = upcE[0];
+            string manufacturer = upcE.Substring(1, 6);
+            char checkDigit = upcE[7];
+
+            string expanded = manufacturer[5] switch
+            {
+                '0' or '1' or '2' => manufacturer.Substring(0, 2) + manufacturer[5] + "0000" + manufacturer.Substring(2, 3),
+                '3' => manufacturer.Substring(0, 3) + "00000" + manufacturer.Substring(3, 2),
+                '4' => manufacturer.Substring(0, 4) + "00000" + manufacturer.Substring(4, 1),
+                _ => manufacturer.Substring(0, 5) + "0000" + manufacturer[5]
+            };
+
+            upcA = numberSystem + expanded + checkDigit;
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves <see cref="BarcodeSymbology.Auto"/> to a concrete symbology based on
+        /// <paramref name="data"/>'s shape: digits-only data whose length exactly matches a
+        /// checksum-carrying symbology (Ean13/UpcA/Ean8/UpcE, checked narrowest-length-first) and
+        /// whose check digit validates picks that symbology; other digits-only data falls back to
+        /// Itf (needs an even digit count) or, failing that, Code128; non-digit data picks Code39
+        /// if every character fits its charset, else Code128 - same fallback ZXing's own encoder
+        /// would need since Code128 accepts the full ASCII range.
+        /// </summary>
+        private static BarcodeSymbology ResolveAutoSymbology(string data)
+        {
+            if (string.IsNullOrEmpty(data))
+                return BarcodeSymbology.Code128;
+
+            if (data.All(char.IsDigit))
+            {
+                if (data.Length == 13 && HasValidMod10Checksum(data))
+                    return BarcodeSymbology.Ean13;
+                if (data.Length == 12 && HasValidMod10Checksum(data))
+                    return BarcodeSymbology.UpcA;
+                // UpcE checked before Ean8: an 8-digit code starting 2-9 can only be Ean8 (UpcE's
+                // number-system digit is restricted to 0/1, enforced by TryExpandUpcEToUpcA's own
+                // guard), so this ordering doesn't change anything for those. One starting 0/1
+                // could legitimately be either - UpcE, or an EAN-8 restricted-circulation/
+                // internal-use number, which conventionally also starts with 0 - so the leading
+                // digit alone can't break the tie. UpcE wins it: it's a real public retail
+                // symbology meant to be scanned by anyone, whereas EAN-8's restricted-circulation
+                // range is by definition for a single company's internal use and not something a
+                // generic label-printing tool would plausibly be asked to auto-detect.
+                if (data.Length == 8 && TryExpandUpcEToUpcA(data, out var expanded) && HasValidMod10Checksum(expanded))
+                    return BarcodeSymbology.UpcE;
+                if (data.Length == 8 && HasValidMod10Checksum(data))
+                    return BarcodeSymbology.Ean8;
+
+                return data.Length % 2 == 0 ? BarcodeSymbology.Itf : BarcodeSymbology.Code128;
+            }
+
+            const string code39Charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%";
+            if (data.All(c => code39Charset.Contains(char.ToUpperInvariant(c))))
+                return BarcodeSymbology.Code39;
+
+            return BarcodeSymbology.Code128;
+        }
 
         /// <summary>
         /// How many printer dots wide the narrowest barcode module (bar/space unit) gets
@@ -1228,6 +1328,7 @@ namespace Letra200bSharp
         /// <returns>PNG-encoded bytes of the rendered barcode</returns>
         private static byte[] RenderBarcodeImage(string data, BarcodeSymbology symbology, bool showNumber, bool noCut)
         {
+            BarcodeSymbology resolvedSymbology = symbology == BarcodeSymbology.Auto ? ResolveAutoSymbology(data) : symbology;
             int targetHeight = noCut ? 32 : 30;
             // How tall a notch to leave for the number, once its column range is known below -
             // not a height the bars themselves are ever encoded/resized to (see below: bars
@@ -1246,11 +1347,11 @@ namespace Letra200bSharp
                 // below via a crisp nearest-neighbor resize instead of letting ZXing do it, so
                 // that step matches the rest of this file's approach to keeping bars/edges sharp.
                 // Always the full targetHeight - see notchStartY above.
-                matrix = new MultiFormatWriter().encode(data, ToZXingFormat(symbology), 1, targetHeight, hints);
+                matrix = new MultiFormatWriter().encode(data, ToZXingFormat(resolvedSymbology), 1, targetHeight, hints);
             }
             catch (Exception ex)
             {
-                throw new ArgumentException($"'{data}' isn't valid {symbology} barcode data: {ex.Message}", nameof(data), ex);
+                throw new ArgumentException($"'{data}' isn't valid {(symbology == BarcodeSymbology.Auto ? $"{resolvedSymbology} (auto-detected)" : symbology.ToString())} barcode data: {ex.Message}", nameof(data), ex);
             }
 
             using (var barsBitmap = new SKBitmap(matrix.Width, matrix.Height))

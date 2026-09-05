@@ -3,13 +3,14 @@ using System.Linq;
 using Android.App;
 using Android.Content.PM;
 using Android.OS;
+using AndroidX.Core.SplashScreen;
 using Avalonia;
 using Avalonia.Android;
 
 namespace Letra200bSharp.Avalonia.Android;
 
 [Activity(
-    Label = "Letra200bSharp.Avalonia.Android",
+    Label = "@string/app_name",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
@@ -18,6 +19,10 @@ public class MainActivity : AvaloniaMainActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
     {
+        // Must run before base.OnCreate() so the library takes over the launch window
+        // before the activity creates it - on Android 12+, calling it any later means
+        // postSplashScreenTheme is silently ignored and windowBackground stays @null.
+        AndroidX.Core.SplashScreen.SplashScreen.InstallSplashScreen(this);
         base.OnCreate(savedInstanceState);
         RequestBluetoothPermissions();
     }

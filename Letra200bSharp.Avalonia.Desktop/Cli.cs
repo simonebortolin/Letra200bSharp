@@ -68,7 +68,7 @@ internal class BarcodeOptions
     [Option("data", Required = true, HelpText = "Barcode content.")]
     public required string Data { get; set; }
 
-    [Option("symbology", Default = LetraHelper.BarcodeSymbology.Code128, HelpText = "Code128, Code39, Codabar, Itf, Ean13, Ean8, UpcA, or UpcE.")]
+    [Option("symbology", Default = LetraHelper.BarcodeSymbology.Auto, HelpText = "Auto (guesses from the data's shape/checksum), Code128, Code39, Codabar, Itf, Ean13, Ean8, UpcA, or UpcE.")]
     public LetraHelper.BarcodeSymbology Symbology { get; set; }
 
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered barcode already accounts for the printer's unprintable top/bottom row.")]

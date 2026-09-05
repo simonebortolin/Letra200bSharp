@@ -22,7 +22,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
     public partial string Data { get; set; } = "";
 
     [ObservableProperty]
-    public partial string SelectedSymbology { get; set; } = nameof(LetraHelper.BarcodeSymbology.Code128);
+    public partial string SelectedSymbology { get; set; } = nameof(LetraHelper.BarcodeSymbology.Auto);
 
     [ObservableProperty]
     public partial bool NoCut { get; set; }
