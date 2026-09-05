@@ -5,8 +5,8 @@
 		<SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
 		<Nullable>enable</Nullable>
 		<ApplicationId>com.Letra200bSharp.Avalonia</ApplicationId>
-		<ApplicationVersion>1</ApplicationVersion>
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>$(AndroidVersionCode)</ApplicationVersion>
+		<ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 		<!-- Without this, a plain "dotnet build" only bundles native libs for the last-used

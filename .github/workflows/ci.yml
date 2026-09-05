@@ -232,8 +232,6 @@ jobs:
             -c Release \
             -f net10.0-android \
             -p:AndroidPackageFormat=apk \
-            -p:ApplicationDisplayVersion=$VERSION \
-            -p:ApplicationVersion=${{ github.run_number }} \
             -p:ContinuousIntegrationBuild=true \
             -p:EnableWindowsTargeting=true \
             $SIGNING_PROPS \

@@ -1,6 +1,16 @@
 <Project>
   <PropertyGroup>
-    <Version>1.3.0</Version>
+    <Version>1.3.1</Version>
 	<EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Android versionCode: must be a positive integer that strictly increases between
+         releases. Derived here from Version so bumping <Version> above is the only edit
+         needed. Assumes Minor and Patch each stay below 100. -->
+    <_VersionMajor>$(Version.Split('.')[0])</_VersionMajor>
+    <_VersionMinor>$(Version.Split('.')[1])</_VersionMinor>
+    <_VersionPatch>$(Version.Split('.')[2])</_VersionPatch>
+    <AndroidVersionCode>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(_VersionMajor), 10000)), $([MSBuild]::Multiply($(_VersionMinor), 100)))), $(_VersionPatch)))</AndroidVersionCode>
   </PropertyGroup>
 </Project>
