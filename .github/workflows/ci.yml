@@ -10,12 +10,7 @@ on:
   workflow_dispatch: # Allows manual trigger of the workflow
 
 permissions:
-  contents: write
-  actions: read
-  checks: write
-  packages: write
-  pull-requests: read
-  statuses: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Read version from BuildVersion.props
         id: resolve
@@ -74,6 +71,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -134,6 +133,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -194,6 +195,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: actions/setup-java@v6
@@ -218,7 +221,7 @@ jobs:
         run: dotnet workload install android
 
       - name: Prepare signing key
-        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_KEYSTORE_BASE64 != '' && github.event_name != 'pull_request'
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/letra.keystore"
           echo "SIGNING_PROPS=-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$RUNNER_TEMP/letra.keystore -p:AndroidSigningStorePass=env:ANDROID_KEYSTORE_PASSWORD -p:AndroidSigningKeyAlias=$ANDROID_KEY_ALIAS -p:AndroidSigningKeyPass=env:ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
