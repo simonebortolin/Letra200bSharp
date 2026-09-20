@@ -3,8 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using ZXing;
-using ZXing.Common;
+using CodeGlyphX;
+using CodeGlyphX.DataMatrix;
+using CodeGlyphX.UpcE;
 
 namespace Letra200bSharp
 {
@@ -1134,9 +1135,10 @@ namespace Letra200bSharp
 
         /// <summary>
         /// 1D barcode symbologies exposed for printing/preview - a curated subset of
-        /// ZXing.Net's <see cref="BarcodeFormat"/>. No 2D symbologies (QR, Data Matrix, ...):
-        /// squeezed into the printer's fixed ~30px printable height they'd come out as a tiny,
-        /// unreadable smudge instead of a scannable code.
+        /// CodeGlyphX's <see cref="BarcodeType"/>. 2D symbologies (QR, Micro QR, rMQR, Data
+        /// Matrix) have their own <see cref="TwoDSymbology"/> and rendering path - see
+        /// <see cref="RenderTwoDImage"/> - since fitting a matrix code into the printer's fixed
+        /// ~30px head axis needs a completely different sizing approach than a 1D barcode.
         /// </summary>
         public enum BarcodeSymbology
         {
@@ -1155,18 +1157,48 @@ namespace Letra200bSharp
             UpcE
         }
 
-        private static BarcodeFormat ToZXingFormat(BarcodeSymbology symbology) => symbology switch
+        /// <summary>
+        /// Maps our curated <see cref="BarcodeSymbology"/> to CodeGlyphX's <see cref="BarcodeType"/>.
+        /// Both <see cref="BarcodeSymbology.Ean13"/> and <see cref="BarcodeSymbology.Ean8"/> map to
+        /// <see cref="BarcodeType.EAN"/> - CodeGlyphX's EAN encoder picks 8 vs 13 from the digit
+        /// count, and <see cref="ResolveAutoSymbology"/>/the encoder itself already validate that.
+        /// </summary>
+        private static BarcodeType ToCodeGlyphXType(BarcodeSymbology symbology) => symbology switch
         {
-            BarcodeSymbology.Code128 => BarcodeFormat.CODE_128,
-            BarcodeSymbology.Code39 => BarcodeFormat.CODE_39,
-            BarcodeSymbology.Codabar => BarcodeFormat.CODABAR,
-            BarcodeSymbology.Itf => BarcodeFormat.ITF,
-            BarcodeSymbology.Ean13 => BarcodeFormat.EAN_13,
-            BarcodeSymbology.Ean8 => BarcodeFormat.EAN_8,
-            BarcodeSymbology.UpcA => BarcodeFormat.UPC_A,
-            BarcodeSymbology.UpcE => BarcodeFormat.UPC_E,
+            BarcodeSymbology.Code128 => BarcodeType.Code128,
+            BarcodeSymbology.Code39 => BarcodeType.Code39,
+            BarcodeSymbology.Codabar => BarcodeType.Codabar,
+            BarcodeSymbology.Itf => BarcodeType.ITF,
+            BarcodeSymbology.Ean13 => BarcodeType.EAN,
+            BarcodeSymbology.Ean8 => BarcodeType.EAN,
+            BarcodeSymbology.UpcA => BarcodeType.UPCA,
+            BarcodeSymbology.UpcE => BarcodeType.UPCE,
             _ => throw new ArgumentOutOfRangeException(nameof(symbology))
         };
+
+        /// <summary>
+        /// CodeGlyphX's UPC-E encoder takes the 6-digit payload plus an explicit number system
+        /// (0 or 1), whereas this app - like the Dymo app, and ZXing before it - works with the
+        /// full 8-digit UPC-E (number system + 6-digit payload + check digit). Accept the 8-digit
+        /// form (validating its check digit against the expanded UPC-A, the same way
+        /// <see cref="ResolveAutoSymbology"/> does) and split it; pass anything else straight
+        /// through for CodeGlyphX to validate.
+        /// </summary>
+        private static Barcode1D EncodeUpcE(string data)
+        {
+            if (data.Length == 8 && data.All(char.IsDigit))
+            {
+                if (!TryExpandUpcEToUpcA(data, out var upcA) || !HasValidMod10Checksum(upcA))
+                {
+                    throw new FormatException("An 8-digit UPC-E must be a valid number system (0 or 1), a 6-digit payload, and a matching check digit.");
+                }
+
+                var numberSystem = data[0] == '1' ? UpcENumberSystem.One : UpcENumberSystem.Zero;
+                return BarcodeEncoder.EncodeUpcE(data.Substring(1, 6), numberSystem);
+            }
+
+            return BarcodeEncoder.EncodeUpcE(data);
+        }
 
         /// <summary>
         /// GS1 mod-10 check digit validation shared by EAN-13, EAN-8 and UPC-A (and, via
@@ -1314,8 +1346,8 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Renders <paramref name="data"/> as a black-on-white barcode using ZXing.Net, sized so
-        /// its module rows exactly match the printer's fixed printable height (30, or 32 if
+        /// Renders <paramref name="data"/> as a black-on-white 1D barcode using CodeGlyphX, sized
+        /// so its bars exactly match the printer's fixed printable height (30, or 32 if
         /// <paramref name="noCut"/>). Reuses <see cref="CreateJob(byte[], bool, bool)"/>'s
         /// <c>preRendered</c> path the same way <see cref="RenderTextImage"/> does.
         /// </summary>
@@ -1337,34 +1369,41 @@ namespace Letra200bSharp
             int numberHeight = showNumber ? Math.Max(4, (int)MathF.Round(targetHeight * BarcodeNumberHeightRatio)) : 0;
             int notchStartY = targetHeight - numberHeight;
 
-            var hints = new Dictionary<EncodeHintType, object> { { EncodeHintType.PURE_BARCODE, true } };
-
-            BitMatrix matrix;
+            Barcode1D barcode;
             try
             {
-                // width=1 forces ZXing's internal multiple (pixels-per-module) to its minimum
-                // of 1, i.e. the natural, unstretched module width - scaled back up ourselves
-                // below via a crisp nearest-neighbor resize instead of letting ZXing do it, so
-                // that step matches the rest of this file's approach to keeping bars/edges sharp.
-                // Always the full targetHeight - see notchStartY above.
-                matrix = new MultiFormatWriter().encode(data, ToZXingFormat(resolvedSymbology), 1, targetHeight, hints);
+                // CodeGlyphX's 1D encoders hand back the bare bar/space module run - no quiet
+                // zone, no human-readable digits - which is exactly what we want (the equivalent
+                // of ZXing's PURE_BARCODE hint). The natural, unstretched pattern is scaled back
+                // up ourselves below via a crisp nearest-neighbor resize, matching the rest of
+                // this file's approach to keeping bars/edges sharp, rather than letting the
+                // library rasterize it.
+                barcode = resolvedSymbology == BarcodeSymbology.UpcE
+                    ? EncodeUpcE(data)
+                    : BarcodeEncoder.Encode(ToCodeGlyphXType(resolvedSymbology), data);
             }
             catch (Exception ex)
             {
                 throw new ArgumentException($"'{data}' isn't valid {(symbology == BarcodeSymbology.Auto ? $"{resolvedSymbology} (auto-detected)" : symbology.ToString())} barcode data: {ex.Message}", nameof(data), ex);
             }
 
-            using (var barsBitmap = new SKBitmap(matrix.Width, matrix.Height))
+            int moduleCount = barcode.TotalModules;
+            // A 1-pixel-tall row of the bar pattern; the vertical (head) axis is filled in by the
+            // nearest-neighbor resize to targetHeight below, since a 1D barcode's bars just run
+            // the full label height.
+            using (var barsBitmap = new SKBitmap(moduleCount, 1))
             {
-                for (int x = 0; x < matrix.Width; x++)
+                int column = 0;
+                foreach (var segment in barcode.Segments)
                 {
-                    for (int y = 0; y < matrix.Height; y++)
+                    var color = segment.IsBar ? SKColors.Black : SKColors.White;
+                    for (int i = 0; i < segment.Modules; i++)
                     {
-                        barsBitmap.SetPixel(x, y, matrix[x, y] ? SKColors.Black : SKColors.White);
+                        barsBitmap.SetPixel(column++, 0, color);
                     }
                 }
 
-                int barsWidth = matrix.Width * BarcodeModuleScale;
+                int barsWidth = moduleCount * BarcodeModuleScale;
                 using (var scaledBars = barsBitmap.Resize(new SKImageInfo(barsWidth, targetHeight), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)))
                 {
                     if (!showNumber)
@@ -1436,6 +1475,377 @@ namespace Letra200bSharp
         {
             byte[] imageBytes = RenderBarcodeImage(data, symbology, showNumber, noCut);
             return PreviewImage(imageBytes, noCut, preRendered: true);
+        }
+
+        // ---------------------------------------------------------------------------------
+        // 2D matrix symbologies (QR, Micro QR, rMQR, Data Matrix)
+        // ---------------------------------------------------------------------------------
+
+        /// <summary>
+        /// 2D matrix symbologies exposed for printing/preview - a curated subset of what
+        /// CodeGlyphX can encode. Unlike a 1D barcode (see <see cref="BarcodeSymbology"/>), a
+        /// matrix code's modules have to stay physically square, so sizing is driven entirely by
+        /// how many modules fit the printer's <see cref="TwoDHeadBudgetPixels"/>-dot head axis
+        /// (across the tape) - see <see cref="RenderTwoDImage"/>.
+        /// </summary>
+        public enum TwoDSymbology
+        {
+            /// <summary>
+            /// Not a real symbology to encode with - <see cref="EncodeTwoDAuto"/> resolves it to
+            /// whichever concrete symbology prints this data on the least tape while keeping every
+            /// module at least 2 printer dots (~0.32 mm) wide. Full QR is never chosen - its
+            /// 21-module minimum guarantees 1 dot/module on this printer - so <c>Auto</c> only
+            /// ever yields Micro QR, rMQR or Data Matrix.
+            /// </summary>
+            Auto,
+            QrCode,
+            MicroQrCode,
+            RectangularMicroQrCode,
+            DataMatrix
+        }
+
+        /// <summary>
+        /// How a chosen 2D symbol maps onto this printer: what symbol was picked, its module
+        /// dimensions, how many printer dots each module gets on each axis, and - since the head
+        /// axis is the constraint - the resulting physical module size, so the UI can warn before
+        /// printing something too small to scan (<see cref="MayNotScanWell"/>).
+        /// </summary>
+        /// <param name="Symbology">The concrete symbology used (never <see cref="TwoDSymbology.Auto"/>).</param>
+        /// <param name="SymbolName">Human-readable symbol name, e.g. "QR V2", "Micro QR M3", "rMQR R11x27", "Data Matrix 16×16".</param>
+        /// <param name="ModulesShort">Module count along the symbol's shorter side (mapped to the printer's head axis).</param>
+        /// <param name="ModulesLong">Module count along the symbol's longer side (mapped to the printer's feed axis).</param>
+        /// <param name="DotsPerModuleShort">Printer dots per module on the head axis (the "v" in the 1×2 / 2×4 / 4×8 shorthand).</param>
+        /// <param name="DotsPerModuleLong">Printer dots per module on the feed axis - always twice <see cref="DotsPerModuleShort"/>, since feed-axis dots are half the physical size of head-axis dots.</param>
+        /// <param name="ModuleSizeMm">Physical size of one (square) module, in millimeters.</param>
+        /// <param name="MayNotScanWell">
+        /// <c>true</c> when each module is only one head-axis dot (~0.16 mm) - technically valid
+        /// but at or below the practical limit for phone-camera scanning, and vulnerable to
+        /// thermal dot gain. <see cref="TwoDSymbology.Auto"/> never returns a plan with this set.
+        /// </param>
+        public readonly record struct TwoDPlan(
+            TwoDSymbology Symbology,
+            string SymbolName,
+            int ModulesShort,
+            int ModulesLong,
+            int DotsPerModuleShort,
+            int DotsPerModuleLong,
+            float ModuleSizeMm,
+            bool MayNotScanWell);
+
+        /// <summary>
+        /// Printer dots available on the head axis (across the tape) for a 2D symbol. The head
+        /// axis is physically 32 dots but only the middle 30 print (see <see cref="PrepareBitmap"/>);
+        /// a matrix code can't afford to lose its outer ring, so it's always rendered into 30 and
+        /// the pipeline's own 1-dot padding on each side (which only ever adds quiet zone) takes
+        /// it to 32. The quiet zone itself is free here - everything around the symbol is bare,
+        /// unprinted tape.
+        /// </summary>
+        private const int TwoDHeadBudgetPixels = 30;
+
+        /// <summary>
+        /// Largest QR version <see cref="TwoDSymbology.QrCode"/> will encode: V3 is 29 modules,
+        /// the most that fit <see cref="TwoDHeadBudgetPixels"/> at 1 dot/module. (QR's 21-module
+        /// minimum already rules out 2 dots/module, so every QR here is in the
+        /// <see cref="TwoDPlan.MayNotScanWell"/> tier.)
+        /// </summary>
+        private const int TwoDMaxQrVersion = 3;
+
+        /// <summary>The QR/Micro QR alphanumeric-mode character set (uppercase only) - ISO/IEC 18004 Table 5.</summary>
+        private const string QrAlphanumericCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+
+        /// <summary>
+        /// rMQR <see cref="RmQrEncodingOptions.MaximumVersion"/> caps, one per symbol-height bucket
+        /// (heights 7, 9, 11, 13, 15, 17 - see ISO/IEC 23941). <see cref="EncodeRmQr"/> tries these
+        /// smallest-first: forcing the encoder to a shorter symbol whenever the data still fits is
+        /// what maximizes dots-per-module (R7 → 4, R9 → 3, R11/R13/R15 → 2, R17 → 1).
+        /// </summary>
+        private static readonly int[] TwoDRmQrMaxVersionByHeightBucket = { 5, 10, 16, 22, 27, 32 };
+
+        /// <summary>
+        /// Encodes <paramref name="data"/> as the requested 2D symbology and returns its raw
+        /// module matrix (no quiet zone) plus a display name. <see cref="TwoDSymbology.Auto"/> is
+        /// resolved here - see <see cref="EncodeTwoDAuto"/>.
+        /// </summary>
+        private static (BitMatrix Modules, TwoDSymbology Resolved, string Name) EncodeTwoD(string data, TwoDSymbology symbology)
+        {
+            if (string.IsNullOrEmpty(data))
+            {
+                throw new ArgumentException("No data to encode.", nameof(data));
+            }
+
+            return symbology switch
+            {
+                TwoDSymbology.Auto => EncodeTwoDAuto(data),
+                TwoDSymbology.QrCode => EncodeQr(data),
+                TwoDSymbology.MicroQrCode => EncodeMicroQr(data),
+                TwoDSymbology.RectangularMicroQrCode => EncodeRmQr(data),
+                TwoDSymbology.DataMatrix => EncodeDataMatrix(data),
+                _ => throw new ArgumentOutOfRangeException(nameof(symbology))
+            };
+        }
+
+        private static (BitMatrix, TwoDSymbology, string) EncodeQr(string data)
+        {
+            QrCode qr;
+            try
+            {
+                qr = QrCodeEncoder.EncodeText(data, QrErrorCorrectionLevel.M, minVersion: 1, maxVersion: TwoDMaxQrVersion);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"'{data}' doesn't fit a QR code of version {TwoDMaxQrVersion} or lower (the largest that fits this printer): {ex.Message}. Try rMQR or Data Matrix instead.", nameof(data), ex);
+            }
+
+            return (qr.Modules, TwoDSymbology.QrCode, $"QR V{qr.Version}");
+        }
+
+        private static (BitMatrix, TwoDSymbology, string) EncodeMicroQr(string data)
+        {
+            MicroQrCode code;
+            try
+            {
+                if (data.All(char.IsDigit))
+                {
+                    code = MicroQrCodeEncoder.EncodeNumeric(data);
+                }
+                else if (data.All(c => QrAlphanumericCharset.Contains(c)))
+                {
+                    code = MicroQrCodeEncoder.EncodeAlphanumeric(data);
+                }
+                else
+                {
+                    code = MicroQrCodeEncoder.EncodeText(data);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"'{data}' doesn't fit a Micro QR code (M1-M4): {ex.Message}. Try rMQR or Data Matrix instead.", nameof(data), ex);
+            }
+
+            return (code.Modules, TwoDSymbology.MicroQrCode, $"Micro QR M{code.Version}");
+        }
+
+        private static (BitMatrix, TwoDSymbology, string) EncodeRmQr(string data)
+        {
+            Exception? lastError = null;
+            foreach (int maxVersion in TwoDRmQrMaxVersionByHeightBucket)
+            {
+                try
+                {
+                    var code = RmQrCodeEncoder.EncodeText(data, new RmQrEncodingOptions
+                    {
+                        ErrorCorrectionLevel = QrErrorCorrectionLevel.M,
+                        Mode = RmQrEncodingMode.Auto,
+                        MinimumVersion = 1,
+                        MaximumVersion = maxVersion
+                    });
+                    return (code.Modules, TwoDSymbology.RectangularMicroQrCode, $"rMQR {code.VersionName}");
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                }
+            }
+
+            throw new ArgumentException($"'{data}' doesn't fit any rMQR symbol: {lastError?.Message}. Try Data Matrix, or a full QR code.", nameof(data), lastError);
+        }
+
+        private static (BitMatrix, TwoDSymbology, string) EncodeDataMatrix(string data)
+        {
+            BitMatrix matrix;
+            try
+            {
+                matrix = DataMatrixCode.Encode(data, new DataMatrixEncodingOptions { Shape = DataMatrixShape.Square });
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"'{data}' can't be encoded as a Data Matrix: {ex.Message}", nameof(data), ex);
+            }
+
+            return (matrix, TwoDSymbology.DataMatrix, $"Data Matrix {matrix.Width}×{matrix.Height}");
+        }
+
+        /// <summary>
+        /// Resolves <see cref="TwoDSymbology.Auto"/>: encodes <paramref name="data"/> as rMQR,
+        /// Micro QR and Data Matrix (never full QR - it's always in the
+        /// <see cref="TwoDPlan.MayNotScanWell"/> tier here) and returns whichever prints on the
+        /// least tape (fewest feed-axis dots) while keeping every module at least 2 dots wide.
+        /// Ties break toward the bigger module, then toward the symbology better suited to narrow
+        /// marking (rMQR, then Micro QR, then Data Matrix). If nothing clears the 2-dot bar, the
+        /// data is too long - the caller has to pick a symbology explicitly to accept a smaller,
+        /// less reliable code.
+        /// </summary>
+        private static (BitMatrix, TwoDSymbology, string) EncodeTwoDAuto(string data)
+        {
+            (Func<(BitMatrix, TwoDSymbology, string)> Encode, int Preference)[] attempts =
+            {
+                (() => EncodeRmQr(data), 0),
+                (() => EncodeMicroQr(data), 1),
+                (() => EncodeDataMatrix(data), 2),
+            };
+
+            (BitMatrix Modules, TwoDSymbology Resolved, string Name, int FeedDots, int Dots, int Preference)? best = null;
+            var errors = new List<string>();
+
+            foreach (var (encode, preference) in attempts)
+            {
+                try
+                {
+                    var (modules, resolved, name) = encode();
+                    var plan = BuildTwoDPlan(modules, resolved, name);
+                    if (plan.MayNotScanWell)
+                    {
+                        errors.Add($"{name} would print at ~{plan.ModuleSizeMm:0.00} mm/module - too small to scan reliably");
+                        continue;
+                    }
+
+                    int feedDots = plan.ModulesLong * plan.DotsPerModuleLong;
+                    if (best is null
+                        || feedDots < best.Value.FeedDots
+                        || (feedDots == best.Value.FeedDots && plan.DotsPerModuleShort > best.Value.Dots)
+                        || (feedDots == best.Value.FeedDots && plan.DotsPerModuleShort == best.Value.Dots && preference < best.Value.Preference))
+                    {
+                        best = (modules, resolved, name, feedDots, plan.DotsPerModuleShort, preference);
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    errors.Add(ex.Message);
+                }
+            }
+
+            if (best is null)
+            {
+                throw new ArgumentException(
+                    "No 2D symbology fits this data at a module size that scans reliably on this printer. Shorten the data, or pick QR / Micro QR / rMQR explicitly to accept a smaller, less reliable code. Details: "
+                    + string.Join("; ", errors),
+                    nameof(data));
+            }
+
+            return (best.Value.Modules, best.Value.Resolved, best.Value.Name);
+        }
+
+        /// <summary>
+        /// Works out how <paramref name="modules"/> maps onto the printer: the shorter module
+        /// axis goes on the head axis (the constrained one), at the largest whole number of
+        /// <see cref="TwoDHeadBudgetPixels"/> dots per module that fits; the feed axis gets twice
+        /// that, since feed-axis dots are half the physical size, keeping modules square.
+        /// </summary>
+        /// <exception cref="ArgumentException">The symbol's short side needs more modules than the head axis has dots.</exception>
+        private static TwoDPlan BuildTwoDPlan(BitMatrix modules, TwoDSymbology resolved, string name)
+        {
+            int shortSide = Math.Min(modules.Width, modules.Height);
+            int longSide = Math.Max(modules.Width, modules.Height);
+
+            if (shortSide > TwoDHeadBudgetPixels)
+            {
+                throw new ArgumentException(
+                    $"{name} needs {shortSide} modules across its short side, but only {TwoDHeadBudgetPixels} printer dots are available across the tape - the data is too long for this symbology on this printer.");
+            }
+
+            int dotsPerModuleShort = TwoDHeadBudgetPixels / shortSide;
+            int dotsPerModuleLong = dotsPerModuleShort * 2;
+
+            // FeedAxisPixelsPerMm counts feed-axis dots; head-axis dots are twice the size, so the
+            // head axis resolves at half as many dots per millimeter.
+            float moduleSizeMm = dotsPerModuleShort / (FeedAxisPixelsPerMm / 2f);
+
+            return new TwoDPlan(resolved, name, shortSide, longSide, dotsPerModuleShort, dotsPerModuleLong, moduleSizeMm, dotsPerModuleShort <= 1);
+        }
+
+        /// <summary>
+        /// Encodes <paramref name="data"/> and lays it out for the printer without rendering -
+        /// see <see cref="TwoDPlan"/>. Meant for UI feedback (showing the chosen symbol and
+        /// warning about <see cref="TwoDPlan.MayNotScanWell"/>) before committing to a print.
+        /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
+        public static TwoDPlan PlanTwoDImage(string data, TwoDSymbology symbology)
+        {
+            var (modules, resolved, name) = EncodeTwoD(data, symbology);
+            return BuildTwoDPlan(modules, resolved, name);
+        }
+
+        /// <summary>
+        /// Renders <paramref name="data"/> as a 2D matrix code, sized so every module is
+        /// physically square and the symbol's short side exactly fills the printer's head axis
+        /// (see <see cref="BuildTwoDPlan"/>). Produced in the same landscape layout as
+        /// <see cref="RenderBarcodeImage"/> (head axis = image height = <see cref="TwoDHeadBudgetPixels"/>,
+        /// feed axis = image width) and fed through the <c>preRendered</c> path the same way. A
+        /// few modules of quiet zone are added on the feed axis (free - the tape is bare); the
+        /// head axis relies on the surrounding unprinted tape plus the pipeline's own padding.
+        /// </summary>
+        /// <returns>PNG-encoded bytes of the rendered symbol.</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
+        private static byte[] RenderTwoDImage(string data, TwoDSymbology symbology, out TwoDPlan plan)
+        {
+            var (modules, resolved, name) = EncodeTwoD(data, symbology);
+            plan = BuildTwoDPlan(modules, resolved, name);
+
+            bool matrixIsPortrait = modules.Width <= modules.Height;
+            int shortSide = plan.ModulesShort;
+            int longSide = plan.ModulesLong;
+            int dotsShort = plan.DotsPerModuleShort;
+            int dotsLong = plan.DotsPerModuleLong;
+
+            int quietModules = resolved == TwoDSymbology.QrCode ? 4 : 2;
+            int quietFeedPx = quietModules * dotsLong;
+            int feedPx = longSide * dotsLong + 2 * quietFeedPx;
+            int headOffset = (TwoDHeadBudgetPixels - shortSide * dotsShort) / 2;
+
+            using (var bitmap = new SKBitmap(feedPx, TwoDHeadBudgetPixels))
+            {
+                using (var canvas = new SKCanvas(bitmap))
+                using (var darkPaint = new SKPaint { Color = SKColors.Black, IsAntialias = false })
+                {
+                    canvas.Clear(SKColors.White);
+                    for (int longIndex = 0; longIndex < longSide; longIndex++)
+                    {
+                        for (int shortIndex = 0; shortIndex < shortSide; shortIndex++)
+                        {
+                            bool dark = matrixIsPortrait ? modules[shortIndex, longIndex] : modules[longIndex, shortIndex];
+                            if (!dark)
+                            {
+                                continue;
+                            }
+
+                            float x = quietFeedPx + longIndex * dotsLong;
+                            float y = headOffset + shortIndex * dotsShort;
+                            canvas.DrawRect(new SKRect(x, y, x + dotsLong, y + dotsShort), darkPaint);
+                        }
+                    }
+                }
+
+                using (var image = SKImage.FromBitmap(bitmap))
+                using (var encoded = image.Encode(SKEncodedImageFormat.Png, 100))
+                {
+                    return encoded.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renders <paramref name="data"/> as a 2D matrix code (see <see cref="RenderTwoDImage"/>)
+        /// and prints it, reusing the same <see cref="CreateJob(byte[], bool, bool)"/> pipeline
+        /// via <c>preRendered</c>.
+        /// </summary>
+        /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b.</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
+        public static List<byte[]> CreateJob(string data, TwoDSymbology symbology)
+        {
+            byte[] imageBytes = RenderTwoDImage(data, symbology, out _);
+            return CreateJob(imageBytes, noCut: false, preRendered: true);
+        }
+
+        /// <summary>
+        /// Renders a PNG preview of what <see cref="CreateJob(string, TwoDSymbology)"/> would
+        /// print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
+        /// </summary>
+        /// <returns>PNG-encoded bytes of the preview image.</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
+        public static byte[] PreviewImage(string data, TwoDSymbology symbology)
+        {
+            byte[] imageBytes = RenderTwoDImage(data, symbology, out _);
+            return PreviewImage(imageBytes, noCut: false, preRendered: true);
         }
     }
 }

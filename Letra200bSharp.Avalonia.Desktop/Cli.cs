@@ -78,6 +78,19 @@ internal class BarcodeOptions
     public bool ShowNumber { get; set; }
 }
 
+[Verb("qr", HelpText = "Print a 2D matrix code (QR, Micro QR, rMQR, or Data Matrix).")]
+internal class QrOptions
+{
+    [Option("address", Required = true, HelpText = "Bluetooth address (or id) of the printer.")]
+    public required string Address { get; set; }
+
+    [Option("data", Required = true, HelpText = "Code content.")]
+    public required string Data { get; set; }
+
+    [Option("symbology", Default = LetraHelper.TwoDSymbology.Auto, HelpText = "Auto (least tape while staying scannable), QrCode, MicroQrCode, RectangularMicroQrCode, or DataMatrix. Note: on this printer a full QR is always near the practical scanning limit - prefer rMQR or Micro QR.")]
+    public LetraHelper.TwoDSymbology Symbology { get; set; }
+}
+
 [Verb("din", HelpText = "Print a DIN rail label strip - one or more text segments, each sized to a number of 18mm DIN modules, printed as a single continuous label.")]
 internal class DinOptions
 {
@@ -110,8 +123,8 @@ internal class DinOptions
 }
 
 /// <summary>
-/// The headless counterpart of the Image/Text/Barcode/DIN Rail tabs in the Avalonia GUI - one
-/// verb per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old,
+/// The headless counterpart of the Image/Text/Barcode/2D Code/DIN Rail tabs in the Avalonia GUI -
+/// one verb per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old,
 /// image-only letra200bsharp.Console project.
 /// </summary>
 internal static class Cli
@@ -135,7 +148,7 @@ internal static class Cli
             cfg.AutoHelp = true;
             cfg.AutoVersion = true;
         });
-        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, DinOptions>(args);
+        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, QrOptions, DinOptions>(args);
 
         if (parserResult is NotParsed<object> notParsed)
         {
@@ -154,6 +167,7 @@ internal static class Cli
             (ImageOptions o) => RunImageAsync(o),
             (TextOptions o) => RunTextAsync(o),
             (BarcodeOptions o) => RunBarcodeAsync(o),
+            (QrOptions o) => RunQrAsync(o),
             (DinOptions o) => RunDinAsync(o),
             errs => Task.FromResult(1));
     }
@@ -223,6 +237,20 @@ internal static class Cli
         try
         {
             var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut, o.ShowNumber);
+            return await PrintAsync(o.Address, job);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunQrAsync(QrOptions o)
+    {
+        try
+        {
+            var job = LetraHelper.CreateJob(o.Data, o.Symbology);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

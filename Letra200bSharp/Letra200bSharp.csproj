@@ -22,7 +22,11 @@
          here, not just a Directory.Packages.props entry, since only a direct reference
          actually wins over the transitive one during version resolution. -->
     <PackageReference Include="Tmds.DBus" Condition="'$(TargetFramework)' == 'net10.0'" />
-    <PackageReference Include="ZXing.Net" />
+    <!-- 2D symbology encoding (QR, Micro QR, rMQR, Data Matrix) plus every 1D symbology the
+         Barcode tab exposes - see LetraHelper. Replaced ZXing.Net, which had no Micro QR /
+         rMQR encoders and a much larger footprint. CodeGlyphX is pure-managed with zero
+         dependencies on net10.0. -->
+    <PackageReference Include="CodeGlyphX" />
   </ItemGroup>
 
   <ItemGroup>

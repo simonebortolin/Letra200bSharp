@@ -10,7 +10,7 @@
     <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
          Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
     <PackageVersion Include="Tmds.DBus" Version="0.92.0" />
-    <PackageVersion Include="ZXing.Net" Version="0.16.11" />
+    <PackageVersion Include="CodeGlyphX" Version="2.1.0" />
 
     <!-- letra200bsharp.Avalonia -->
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />

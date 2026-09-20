@@ -10,6 +10,7 @@ public partial class HistoryTabViewModel : ViewModelBase
     private readonly PrintHistoryService _historyService;
     private readonly TextTabViewModel _text;
     private readonly BarcodeTabViewModel _barcode;
+    private readonly QrTabViewModel _qr;
     private readonly DinRailTabViewModel _dinRail;
     private readonly Action<int> _selectTab;
 
@@ -17,11 +18,12 @@ public partial class HistoryTabViewModel : ViewModelBase
 
     public bool HasEntries => Entries.Count > 0;
 
-    public HistoryTabViewModel(PrintHistoryService historyService, TextTabViewModel text, BarcodeTabViewModel barcode, DinRailTabViewModel dinRail, Action<int> selectTab)
+    public HistoryTabViewModel(PrintHistoryService historyService, TextTabViewModel text, BarcodeTabViewModel barcode, QrTabViewModel qr, DinRailTabViewModel dinRail, Action<int> selectTab)
     {
         _historyService = historyService;
         _text = text;
         _barcode = barcode;
+        _qr = qr;
         _dinRail = dinRail;
         _selectTab = selectTab;
 
@@ -45,6 +47,10 @@ public partial class HistoryTabViewModel : ViewModelBase
             case HistoryKind.Barcode when entry.BarcodeParams != null:
                 _barcode.LoadFrom(entry.BarcodeParams);
                 _selectTab(MainViewModel.BarcodeTabIndex);
+                break;
+            case HistoryKind.Qr2D when entry.QrParams != null:
+                _qr.LoadFrom(entry.QrParams);
+                _selectTab(MainViewModel.QrTabIndex);
                 break;
             case HistoryKind.DinRail when entry.DinRailParams != null:
                 _dinRail.LoadFrom(entry.DinRailParams);

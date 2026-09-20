@@ -88,6 +88,9 @@
   <data name="MainView_BarcodeTabHeader" xml:space="preserve">
     <value>Barcode</value>
   </data>
+  <data name="MainView_QrTabHeader" xml:space="preserve">
+    <value>2D Code</value>
+  </data>
   <data name="MainView_DinRailTabHeader" xml:space="preserve">
     <value>DIN Rail</value>
   </data>
@@ -239,6 +242,26 @@
 
   <data name="BarcodeTab_NoDataEntered" xml:space="preserve">
     <value>No barcode data entered.</value>
+  </data>
+
+  <data name="QrTab_DataLabel" xml:space="preserve">
+    <value>Data:</value>
+  </data>
+  <data name="QrTab_DataPlaceholder" xml:space="preserve">
+    <value>e.g. https://example.com/  or  RACK-A17-BIN-04</value>
+  </data>
+  <data name="QrTab_SymbologyLabel" xml:space="preserve">
+    <value>Symbology:</value>
+  </data>
+  <data name="QrTab_NoDataEntered" xml:space="preserve">
+    <value>No 2D code data entered.</value>
+  </data>
+  <data name="QrTab_SymbolInfoFormat" xml:space="preserve">
+    <value>{0}  ·  {1}×{2} dots/module  ·  ~{3:0.00} mm</value>
+    <comment>0 = symbol name, 1 = head-axis dots/module, 2 = feed-axis dots/module, 3 = module size in mm</comment>
+  </data>
+  <data name="QrTab_MayNotScanWarning" xml:space="preserve">
+    <value>At ~0.16 mm per module this code is at or below the practical limit for phone-camera scanning and is vulnerable to thermal dot gain. Prefer rMQR or Micro QR, or shorten the data.</value>
   </data>
 
   <data name="AboutTab_Tagline" xml:space="preserve">
