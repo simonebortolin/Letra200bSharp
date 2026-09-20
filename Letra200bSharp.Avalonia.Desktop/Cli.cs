@@ -75,8 +75,17 @@ internal class BarcodeOptions
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered barcode already accounts for the printer's unprintable top/bottom row.")]
     public bool NoCut { get; set; }
 
-    [Option("show-number", HelpText = "Print the barcode's own data as a small caption below the bars (Arial Bold, the smallest legible size).")]
-    public bool ShowNumber { get; set; }
+    [Option("caption-position", Default = LetraHelper.CaptionPosition.None, HelpText = "None, Below, or Above - prints the barcode's own data as a small caption alongside the bars.")]
+    public LetraHelper.CaptionPosition CaptionPosition { get; set; }
+
+    [Option("caption-font", Default = "Arial", HelpText = "Font family for the caption (bold, ignored if caption-position is None).")]
+    public string CaptionFont { get; set; } = "Arial";
+
+    [Option("caption-size", Default = LetraHelper.CaptionSize.M, HelpText = "S, M, or L - how much of the printable height the caption takes up.")]
+    public LetraHelper.CaptionSize CaptionSize { get; set; }
+
+    [Option("caption-align", Default = LetraHelper.TextAlign.Center, HelpText = "Left, Center, or Right - alignment between the caption and the bars, whichever ends up narrower.")]
+    public LetraHelper.TextAlign CaptionAlign { get; set; }
 }
 
 [Verb("qr", HelpText = "Print a 2D matrix code (QR, Micro QR, rMQR, or Data Matrix).")]
@@ -140,6 +149,8 @@ internal class DinOptions
 /// </summary>
 internal static class Cli
 {
+    private static readonly ILetraHelper LetraJob = new LetraHelper(new RenderHelper());
+
     /// <returns>
     /// The process exit code, or <c>null</c> if <paramref name="args"/> didn't start with one
     /// of our verbs at all (<see cref="BadVerbSelectedError"/>/<see cref="NoVerbSelectedError"/>)
@@ -213,7 +224,7 @@ internal static class Cli
         try
         {
             var imageBytes = await File.ReadAllBytesAsync(o.Path);
-            var job = LetraHelper.CreateJob(imageBytes, o.NoCut, o.PreRendered);
+            var job = LetraJob.CreateJob(imageBytes, o.NoCut, o.PreRendered);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -234,7 +245,7 @@ internal static class Cli
                 ? o.Line1 + Environment.NewLine + o.Line2
                 : o.Line1;
 
-            var job = LetraHelper.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut);
+            var job = LetraJob.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -248,7 +259,8 @@ internal static class Cli
     {
         try
         {
-            var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut, o.ShowNumber);
+            var caption = new LetraHelper.CaptionOptions(o.CaptionPosition, o.CaptionFont, o.CaptionSize, o.CaptionAlign);
+            var job = LetraJob.CreateJob(o.Data, o.Symbology, o.NoCut, caption);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -262,7 +274,7 @@ internal static class Cli
     {
         try
         {
-            var job = LetraHelper.CreateJob(o.Data, o.Symbology);
+            var job = LetraJob.CreateJob(o.Data, o.Symbology);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -284,7 +296,7 @@ internal static class Cli
                 return 1;
             }
 
-            var job = LetraHelper.CreateJob(symbol.PixelPng, noCut: false, preRendered: true);
+            var job = LetraJob.CreateJob(symbol.PixelPng, noCut: false, preRendered: true);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -311,7 +323,7 @@ internal static class Cli
                 rows.Add((label[..separatorIndex], modules));
             }
 
-            var job = LetraHelper.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut);
+            var job = LetraJob.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

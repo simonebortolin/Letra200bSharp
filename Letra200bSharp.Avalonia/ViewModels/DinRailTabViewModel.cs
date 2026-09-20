@@ -42,6 +42,8 @@ public partial class DinRailTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly IRenderHelper _render;
+    private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
     public ObservableCollection<string> FontFamilies { get; }
@@ -91,11 +93,13 @@ public partial class DinRailTabViewModel : ViewModelBase
     /// <summary>Below this required scale (see <see cref="LetraHelper.DinRailRequiredScale"/>), a row is flagged as likely too small to read once printed.</summary>
     private const float LegibilityWarningThreshold = 0.3f;
 
-    public DinRailTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
+    public DinRailTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _render = render;
+        _letra = letra;
         _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
@@ -123,7 +127,7 @@ public partial class DinRailTabViewModel : ViewModelBase
         var fontFamily = SelectedFontFamily ?? "Arial";
         var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
         var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        float scale = LetraHelper.DinRailRequiredScale(row.Text, fontFamily, style, UpperCase, align, row.Modules, true);
+        float scale = _render.DinRailRequiredScale(row.Text, fontFamily, style, UpperCase, align, row.Modules, true);
         row.IsTooSmallToReadWell = scale < LegibilityWarningThreshold;
     }
 
@@ -212,7 +216,7 @@ public partial class DinRailTabViewModel : ViewModelBase
     /// <summary>The "12 mm tall · ~X mm printed"-style caption, summed across every row's own physical segment length, plus the running modules total shown next to the column header.</summary>
     private void UpdateSizeNote()
     {
-        float totalMm = Rows.Sum(row => LetraHelper.DinRailLengthMm(row.Modules));
+        float totalMm = Rows.Sum(row => _render.DinRailLengthMm(row.Modules));
         SizeNoteText = string.Format(Strings.DinRailTab_SizeNoteFormat, totalMm, Rows.Count);
         TotalModulesText = string.Format(Strings.DinRailTab_TotalModulesFormat, Rows.Sum(row => row.Modules));
     }
@@ -245,7 +249,7 @@ public partial class DinRailTabViewModel : ViewModelBase
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
+                var previewBytes = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -291,7 +295,7 @@ public partial class DinRailTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateDinRailRowJob(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true));
+            var job = await Task.Run(() => _letra.CreateDinRailRowJob(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -352,7 +356,7 @@ public partial class DinRailTabViewModel : ViewModelBase
 
     private void RecordHistory(List<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool printed)
     {
-        var thumbnail = LetraHelper.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
+        var thumbnail = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
         var rowParams = rows.Select(row => new DinRailRowParams(row.Text, row.Modules)).ToList();
         var parameters = new DinRailHistoryParams(rowParams, fontFamily, SelectedStyle, upperCase, SelectedAlign, SelectedSizing, showSeparators);
         var summary = $"{rows.Count} label{(rows.Count == 1 ? "" : "s")}: " + string.Join(" | ", rows.Select(row => row.Text));

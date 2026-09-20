@@ -68,6 +68,12 @@
   <data name="Common_Save" xml:space="preserve">
     <value>Save</value>
   </data>
+  <data name="Common_Concatenate" xml:space="preserve">
+    <value>Concatenate</value>
+  </data>
+  <data name="Common_ConcatenateTooltip" xml:space="preserve">
+    <value>Add to the Compose tab's staged elements</value>
+  </data>
   <data name="Common_NoCut" xml:space="preserve">
     <value>No cut</value>
   </data>
@@ -99,6 +105,9 @@
   </data>
   <data name="MainView_DinRailTabHeader" xml:space="preserve">
     <value>DIN Rail</value>
+  </data>
+  <data name="MainView_ComposeTabHeader" xml:space="preserve">
+    <value>Compose</value>
   </data>
   <data name="MainView_HistoryTabHeader" xml:space="preserve">
     <value>History</value>
@@ -151,8 +160,14 @@
   <data name="BarcodeTab_SymbologyLabel" xml:space="preserve">
     <value>Symbology:</value>
   </data>
-  <data name="BarcodeTab_ShowNumberCheckbox" xml:space="preserve">
-    <value>Show number</value>
+  <data name="BarcodeTab_CaptionPositionLabel" xml:space="preserve">
+    <value>Caption:</value>
+  </data>
+  <data name="BarcodeTab_CaptionFontLabel" xml:space="preserve">
+    <value>Caption font:</value>
+  </data>
+  <data name="BarcodeTab_CaptionSizeLabel" xml:space="preserve">
+    <value>Caption size:</value>
   </data>
 
   <data name="HistoryTab_NoPrintsYet" xml:space="preserve">
@@ -187,6 +202,9 @@
 
   <data name="Status_SavedToHistory" xml:space="preserve">
     <value>Saved to history.</value>
+  </data>
+  <data name="Status_AddedToComposition" xml:space="preserve">
+    <value>Added to composition.</value>
   </data>
   <data name="Status_UnableToGeneratePreview" xml:space="preserve">
     <value>Unable to generate preview: {0}</value>
@@ -338,6 +356,22 @@
   </data>
   <data name="DrawTab_DeleteSymbolButton" xml:space="preserve">
     <value>Delete</value>
+  </data>
+
+  <data name="ComposeTab_NoElementsYet" xml:space="preserve">
+    <value>Nothing staged yet - use "Concatenate" on the Image, Text, Barcode, 2D Code, or Draw tab to add elements here.</value>
+  </data>
+  <data name="ComposeTab_DragHandleTooltip" xml:space="preserve">
+    <value>Drag to reorder</value>
+  </data>
+  <data name="ComposeTab_RemoveButton" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="ComposeTab_ClearAllButton" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <data name="ComposeTab_NoElements" xml:space="preserve">
+    <value>Nothing staged to print yet.</value>
   </data>
 
   <data name="AboutTab_Tagline" xml:space="preserve">

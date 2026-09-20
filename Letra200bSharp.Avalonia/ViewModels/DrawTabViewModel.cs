@@ -23,7 +23,7 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 /// <remarks>
 /// The canvas model (<see cref="_pixels"/>) is always exactly <see cref="CanvasHeightDots"/> rows
 /// - the printer's printable head axis - by <see cref="CanvasWidthDots"/> columns (the feed
-/// axis, resizable), so it's already what <see cref="LetraHelper.CreateJob(byte[], bool, bool)"/>'s
+/// axis, resizable), so it's already what <see cref="ILetraHelper.CreateJob(byte[], bool, bool)"/>'s
 /// <c>preRendered</c> path expects: no rotation or rescale needed anywhere in this class, just a
 /// 1-bit-per-pixel PNG encode. <see cref="CanvasBitmap"/> is a separate, purely cosmetic
 /// <see cref="WriteableBitmap"/> - the same model redrawn at <see cref="Zoom"/>/<see cref="HorizontalZoom"/>
@@ -47,6 +47,9 @@ public partial class DrawTabViewModel : ViewModelBase
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly SymbolLibraryService _symbolLibrary;
+    private readonly CompositionService _composition;
+    private readonly IRenderHelper _render;
+    private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
     /// <summary>[y, x] - true is a printed (black) dot. Always <see cref="CanvasHeightDots"/> rows by <see cref="CanvasWidthDots"/> columns.</summary>
@@ -143,12 +146,15 @@ public partial class DrawTabViewModel : ViewModelBase
 
     private DrawTool CurrentTool => Enum.Parse<DrawTool>(SelectedTool);
 
-    public DrawTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, SymbolLibraryService symbolLibrary, Action<LetraPrintResult> recordStats)
+    public DrawTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, SymbolLibraryService symbolLibrary, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _symbolLibrary = symbolLibrary;
+        _composition = composition;
+        _render = render;
+        _letra = letra;
         _recordStats = recordStats;
 
         Symbols.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSymbols));
@@ -391,7 +397,7 @@ public partial class DrawTabViewModel : ViewModelBase
     /// Redraws <see cref="CanvasBitmap"/> from <see cref="_pixels"/>, nearest-neighbor, at
     /// <see cref="HorizontalZoom"/> screen pixels per feed-axis (horizontal) dot and
     /// <see cref="Zoom"/> per head-axis (vertical) dot - deliberately <em>not</em> a uniform
-    /// block like <see cref="LetraHelper.PreviewImage(byte[], bool, bool)"/>'s upscale, because on
+    /// block like <see cref="IRenderHelper.PreviewImage(byte[], bool, bool)"/>'s upscale, because on
     /// the printer itself those two axes aren't the same physical size: a shape that looks square
     /// here has to actually be twice as wide (in dots) as it is tall to print square (see
     /// <see cref="HorizontalZoom"/>) - this is what makes the live canvas WYSIWYG against the
@@ -534,7 +540,7 @@ public partial class DrawTabViewModel : ViewModelBase
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewImage(modelPng, noCut: false, preRendered: true);
+                var previewBytes = _render.PreviewImage(modelPng, noCut: false, preRendered: true);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -574,7 +580,7 @@ public partial class DrawTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(modelPng, noCut: false, preRendered: true));
+            var job = await Task.Run(() => _letra.CreateJob(modelPng, noCut: false, preRendered: true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -629,9 +635,33 @@ public partial class DrawTabViewModel : ViewModelBase
 
     private void RecordHistory(byte[] modelPng, bool printed)
     {
-        var thumbnail = LetraHelper.PreviewImage(modelPng, noCut: false, preRendered: true);
+        var thumbnail = _render.PreviewImage(modelPng, noCut: false, preRendered: true);
         var parameters = new DrawHistoryParams(modelPng, CanvasWidthDots);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Draw, Strings.DrawTab_DefaultHistoryLabel, thumbnail, DrawParams: parameters, Printed: printed));
+    }
+
+    /// <summary>Adds the current canvas to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
+    [RelayCommand]
+    private void Concatenate()
+    {
+        if (!HasInk())
+        {
+            _reportStatus(Strings.DrawTab_NothingDrawn, true);
+            return;
+        }
+
+        try
+        {
+            var png = EncodePixelsPng(_pixels);
+            var thumbnail = _render.PreviewImage(png, noCut: false, preRendered: true);
+            var parameters = new DrawHistoryParams(png, CanvasWidthDots);
+            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Draw, Strings.DrawTab_DefaultHistoryLabel, thumbnail, DrawParams: parameters));
+            _reportStatus(Strings.Status_AddedToComposition, false);
+        }
+        catch (Exception ex)
+        {
+            _reportStatus(ex.Message, true);
+        }
     }
 
     /// <summary>Trims the canvas to its ink (see <see cref="TrimToContent"/>) and adds it to the personal symbol library, for reuse via <see cref="LoadSymbol"/> or <see cref="PrintSymbolAsync"/> without needing to redraw it.</summary>
@@ -675,7 +705,7 @@ public partial class DrawTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(symbol.PixelPng, noCut: false, preRendered: true));
+            var job = await Task.Run(() => _letra.CreateJob(symbol.PixelPng, noCut: false, preRendered: true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
