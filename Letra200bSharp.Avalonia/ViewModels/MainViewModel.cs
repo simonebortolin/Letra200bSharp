@@ -17,9 +17,10 @@ public partial class MainViewModel : ViewModelBase
     public const int TextTabIndex = 1;
     public const int BarcodeTabIndex = 2;
     public const int QrTabIndex = 3;
-    public const int DinRailTabIndex = 4;
-    public const int HistoryTabIndex = 5;
-    public const int AboutTabIndex = 6;
+    public const int DrawTabIndex = 4;
+    public const int DinRailTabIndex = 5;
+    public const int HistoryTabIndex = 6;
+    public const int AboutTabIndex = 7;
 
     public ObservableCollection<BluetoothDevice> Devices { get; } = new();
 
@@ -71,11 +72,13 @@ public partial class MainViewModel : ViewModelBase
     }
 
     private readonly PrintHistoryService _historyService = new();
+    private readonly SymbolLibraryService _symbolLibrary = new();
 
     public ImageTabViewModel Image { get; }
     public TextTabViewModel Text { get; }
     public BarcodeTabViewModel Barcode { get; }
     public QrTabViewModel Qr { get; }
+    public DrawTabViewModel Draw { get; }
     public DinRailTabViewModel DinRail { get; }
     public HistoryTabViewModel History { get; }
     public AboutTabViewModel About { get; }
@@ -86,8 +89,9 @@ public partial class MainViewModel : ViewModelBase
         Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Text", result));
         Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("Barcode", result));
         Qr = new QrTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("2D Code", result));
+        Draw = new DrawTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _symbolLibrary, result => RecordPrintStats("Draw", result));
         DinRail = new DinRailTabViewModel(() => SelectedDevice, ReportStatus, _historyService, result => RecordPrintStats("DinRail", result));
-        History = new HistoryTabViewModel(_historyService, Text, Barcode, Qr, DinRail, index => SelectedTabIndex = index);
+        History = new HistoryTabViewModel(_historyService, Text, Barcode, Qr, Draw, DinRail, index => SelectedTabIndex = index);
         About = new AboutTabViewModel();
 
         _ = RefreshDevicesAsync();

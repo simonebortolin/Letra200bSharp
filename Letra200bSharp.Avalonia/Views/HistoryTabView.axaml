@@ -26,7 +26,11 @@
                         </Border>
                         <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:g}'}" FontSize="11" Opacity="0.6" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:g}'}" FontSize="11" Opacity="0.6" />
+                                <TextBlock Text="{x:Static res:Strings.HistoryTab_SavedBadge}" FontSize="11" Opacity="0.6" FontStyle="Italic"
+                                           IsVisible="{Binding !Printed}" />
+                            </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="2" Content="{x:Static res:Strings.HistoryTab_ReprintButton}" Margin="4,0"
                                 IsVisible="{Binding CanReprint}"

@@ -153,7 +153,14 @@ public partial class ImageTabViewModel : ViewModelBase
 
             if (result.Printed)
             {
-                RecordHistory(imageBytes, noCut, preRendered);
+                try
+                {
+                    RecordHistory(imageBytes, noCut, preRendered, printed: true);
+                }
+                catch
+                {
+                    // A history-recording failure must never look like the print itself failed.
+                }
             }
         }
         catch (Exception ex)
@@ -167,20 +174,35 @@ public partial class ImageTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Best-effort: a history-recording failure must never look like the print itself failed,
-    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
-    /// No reprint parameters are kept for images - see <see cref="Services.HistoryEntry"/>.
+    /// Saves the current image to history without printing it - lets a design be kept/reused
+    /// (see <see cref="Services.HistoryEntry.Printed"/>) even without a printer in reach. Unlike
+    /// the best-effort recording after a successful print, a failure here is the whole point of
+    /// the action, so it's reported to the user instead of swallowed. No reprint parameters are
+    /// kept for images either way - see <see cref="Services.HistoryEntry"/>.
     /// </summary>
-    private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered)
+    [RelayCommand]
+    private void Save()
     {
+        if (_imageBytes == null)
+        {
+            _reportStatus(Strings.ImageTab_NoImageSelected, true);
+            return;
+        }
+
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail));
+            RecordHistory(_imageBytes, NoCut, PreRendered, printed: false);
+            _reportStatus(Strings.Status_SavedToHistory, false);
         }
-        catch
+        catch (Exception ex)
         {
-            // See summary above.
+            _reportStatus(ex.Message, true);
         }
+    }
+
+    private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered, bool printed)
+    {
+        var thumbnail = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail, Printed: printed));
     }
 }

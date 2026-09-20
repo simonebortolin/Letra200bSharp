@@ -129,7 +129,14 @@ public partial class BarcodeTabViewModel : ViewModelBase
 
             if (result.Printed)
             {
-                RecordHistory(data, symbology, noCut, showNumber);
+                try
+                {
+                    RecordHistory(data, symbology, noCut, showNumber, printed: true);
+                }
+                catch
+                {
+                    // A history-recording failure must never look like the print itself failed.
+                }
             }
         }
         catch (Exception ex)
@@ -143,20 +150,37 @@ public partial class BarcodeTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Best-effort: a history-recording failure must never look like the print itself failed,
-    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
+    /// Saves the current barcode to history without printing it - lets a design be kept/reused
+    /// (see <see cref="Services.HistoryEntry.Printed"/>) even without a printer in reach. Unlike
+    /// the best-effort recording after a successful print, a failure here is the whole point of
+    /// the action, so it's reported to the user instead of swallowed.
     /// </summary>
-    private void RecordHistory(string data, LetraHelper.BarcodeSymbology symbology, bool noCut, bool showNumber)
+    [RelayCommand]
+    private void Save()
     {
+        var data = Data;
+        if (string.IsNullOrEmpty(data))
+        {
+            _reportStatus(Strings.BarcodeTab_NoDataEntered, true);
+            return;
+        }
+
+        var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(data, symbology, noCut, showNumber);
-            var parameters = new BarcodeHistoryParams(data, SelectedSymbology, noCut, showNumber);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, $"{SelectedSymbology}: {data}", thumbnail, BarcodeParams: parameters));
+            RecordHistory(data, symbology, NoCut, ShowNumber, printed: false);
+            _reportStatus(Strings.Status_SavedToHistory, false);
         }
-        catch
+        catch (Exception ex)
         {
-            // See summary above.
+            _reportStatus(ex.Message, true);
         }
+    }
+
+    private void RecordHistory(string data, LetraHelper.BarcodeSymbology symbology, bool noCut, bool showNumber, bool printed)
+    {
+        var thumbnail = LetraHelper.PreviewImage(data, symbology, noCut, showNumber);
+        var parameters = new BarcodeHistoryParams(data, SelectedSymbology, noCut, showNumber);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, $"{SelectedSymbology}: {data}", thumbnail, BarcodeParams: parameters, Printed: printed));
     }
 }

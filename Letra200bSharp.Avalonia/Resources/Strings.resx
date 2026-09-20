@@ -65,6 +65,9 @@
   <data name="Common_Preview" xml:space="preserve">
     <value>Preview</value>
   </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
   <data name="Common_NoCut" xml:space="preserve">
     <value>No cut</value>
   </data>
@@ -90,6 +93,9 @@
   </data>
   <data name="MainView_QrTabHeader" xml:space="preserve">
     <value>2D Code</value>
+  </data>
+  <data name="MainView_DrawTabHeader" xml:space="preserve">
+    <value>Draw</value>
   </data>
   <data name="MainView_DinRailTabHeader" xml:space="preserve">
     <value>DIN Rail</value>
@@ -158,6 +164,9 @@
   <data name="HistoryTab_DeleteButton" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="HistoryTab_SavedBadge" xml:space="preserve">
+    <value>· saved, not printed</value>
+  </data>
 
   <data name="MainView_StatsToggleButtonTooltip" xml:space="preserve">
     <value>Stats for nerds</value>
@@ -176,6 +185,9 @@
     <value>Dymo LetraTag 200B not found.</value>
   </data>
 
+  <data name="Status_SavedToHistory" xml:space="preserve">
+    <value>Saved to history.</value>
+  </data>
   <data name="Status_UnableToGeneratePreview" xml:space="preserve">
     <value>Unable to generate preview: {0}</value>
   </data>
@@ -262,6 +274,70 @@
   </data>
   <data name="QrTab_MayNotScanWarning" xml:space="preserve">
     <value>At ~0.16 mm per module this code is at or below the practical limit for phone-camera scanning and is vulnerable to thermal dot gain. Prefer rMQR or Micro QR, or shorten the data.</value>
+  </data>
+
+  <data name="DrawTab_ToolLabel" xml:space="preserve">
+    <value>Tool:</value>
+  </data>
+  <data name="DrawTab_PenTool" xml:space="preserve">
+    <value>Pen</value>
+  </data>
+  <data name="DrawTab_EraserTool" xml:space="preserve">
+    <value>Eraser</value>
+  </data>
+  <data name="DrawTab_ShowGridCheckbox" xml:space="preserve">
+    <value>Show grid</value>
+  </data>
+  <data name="DrawTab_BrushLabel" xml:space="preserve">
+    <value>Brush:</value>
+  </data>
+  <data name="DrawTab_ZoomLabel" xml:space="preserve">
+    <value>Zoom:</value>
+  </data>
+  <data name="DrawTab_WidthLabel" xml:space="preserve">
+    <value>Width (dots):</value>
+  </data>
+  <data name="DrawTab_UndoButton" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="DrawTab_ClearButton" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="DrawTab_NothingDrawn" xml:space="preserve">
+    <value>Nothing drawn yet.</value>
+  </data>
+  <data name="DrawTab_DefaultHistoryLabel" xml:space="preserve">
+    <value>Drawing</value>
+  </data>
+  <data name="DrawTab_SymbolNameLabel" xml:space="preserve">
+    <value>Symbol name:</value>
+  </data>
+  <data name="DrawTab_SymbolNamePlaceholder" xml:space="preserve">
+    <value>e.g. Warning triangle</value>
+  </data>
+  <data name="DrawTab_SaveAsSymbolButton" xml:space="preserve">
+    <value>Save as symbol</value>
+  </data>
+  <data name="DrawTab_DefaultSymbolNameFormat" xml:space="preserve">
+    <value>Symbol {0:HH:mm:ss}</value>
+  </data>
+  <data name="DrawTab_SymbolSaved" xml:space="preserve">
+    <value>Symbol saved.</value>
+  </data>
+  <data name="DrawTab_SymbolsHeader" xml:space="preserve">
+    <value>Saved symbols</value>
+  </data>
+  <data name="DrawTab_NoSymbolsYet" xml:space="preserve">
+    <value>No symbols saved yet - draw something above and use "Save as symbol".</value>
+  </data>
+  <data name="DrawTab_LoadSymbolButton" xml:space="preserve">
+    <value>Load</value>
+  </data>
+  <data name="DrawTab_PrintSymbolButton" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="DrawTab_DeleteSymbolButton" xml:space="preserve">
+    <value>Delete</value>
   </data>
 
   <data name="AboutTab_Tagline" xml:space="preserve">
