@@ -21,6 +21,9 @@ public partial class QrTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly CompositionService _composition;
+    private readonly IRenderHelper _render;
+    private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
     /// <summary>ComboBox display label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects.</summary>
@@ -61,11 +64,14 @@ public partial class QrTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool MayNotScanWell { get; set; }
 
-    public QrTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
+    public QrTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _composition = composition;
+        _render = render;
+        _letra = letra;
         _recordStats = recordStats;
     }
 
@@ -104,8 +110,8 @@ public partial class QrTabViewModel : ViewModelBase
             IsPreviewLoading = true;
             var (bitmap, plan) = await Task.Run(() =>
             {
-                var resolvedPlan = LetraHelper.PlanTwoDImage(data, symbology);
-                var previewBytes = LetraHelper.PreviewImage(data, symbology);
+                var resolvedPlan = _render.PlanTwoDImage(data, symbology);
+                var previewBytes = _render.PreviewImage(data, symbology);
                 using var stream = new MemoryStream(previewBytes);
                 return (new Bitmap(stream), resolvedPlan);
             });
@@ -151,7 +157,7 @@ public partial class QrTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(data, symbology));
+            var job = await Task.Run(() => _letra.CreateJob(data, symbology));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -207,9 +213,35 @@ public partial class QrTabViewModel : ViewModelBase
 
     private void RecordHistory(string data, LetraHelper.TwoDSymbology symbology, bool printed)
     {
-        var thumbnail = LetraHelper.PreviewImage(data, symbology);
-        var plan = LetraHelper.PlanTwoDImage(data, symbology);
+        var thumbnail = _render.PreviewImage(data, symbology);
+        var plan = _render.PlanTwoDImage(data, symbology);
         var parameters = new QrHistoryParams(data, SelectedSymbology);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters, Printed: printed));
+    }
+
+    /// <summary>Adds the current 2D code to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
+    [RelayCommand]
+    private void Concatenate()
+    {
+        var data = Data;
+        if (string.IsNullOrEmpty(data))
+        {
+            _reportStatus(Strings.QrTab_NoDataEntered, true);
+            return;
+        }
+
+        try
+        {
+            var symbology = CurrentSymbology;
+            var thumbnail = _render.PreviewImage(data, symbology);
+            var plan = _render.PlanTwoDImage(data, symbology);
+            var parameters = new QrHistoryParams(data, SelectedSymbology);
+            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters));
+            _reportStatus(Strings.Status_AddedToComposition, false);
+        }
+        catch (Exception ex)
+        {
+            _reportStatus(ex.Message, true);
+        }
     }
 }

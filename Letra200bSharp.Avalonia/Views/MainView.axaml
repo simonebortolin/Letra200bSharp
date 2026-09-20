@@ -75,6 +75,9 @@
                     <TabItem Header="{x:Static res:Strings.MainView_DinRailTabHeader}">
                         <views:DinRailTabView DataContext="{Binding DinRail}" />
                     </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_ComposeTabHeader}">
+                        <views:ComposeTabView DataContext="{Binding Compose}" />
+                    </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_HistoryTabHeader}">
                         <views:HistoryTabView DataContext="{Binding History}" />
                     </TabItem>

@@ -133,6 +133,33 @@ namespace Letra200bSharp.Avalonia.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Caption font:.
+        /// </summary>
+        public static string BarcodeTab_CaptionFontLabel {
+            get {
+                return ResourceManager.GetString("BarcodeTab_CaptionFontLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Caption:.
+        /// </summary>
+        public static string BarcodeTab_CaptionPositionLabel {
+            get {
+                return ResourceManager.GetString("BarcodeTab_CaptionPositionLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Caption size:.
+        /// </summary>
+        public static string BarcodeTab_CaptionSizeLabel {
+            get {
+                return ResourceManager.GetString("BarcodeTab_CaptionSizeLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to No barcode data entered..
         /// </summary>
         public static string BarcodeTab_NoDataEntered {
@@ -140,16 +167,7 @@ namespace Letra200bSharp.Avalonia.Resources {
                 return ResourceManager.GetString("BarcodeTab_NoDataEntered", resourceCulture);
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Show number.
-        /// </summary>
-        public static string BarcodeTab_ShowNumberCheckbox {
-            get {
-                return ResourceManager.GetString("BarcodeTab_ShowNumberCheckbox", resourceCulture);
-            }
-        }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to Symbology:.
         /// </summary>
@@ -167,7 +185,25 @@ namespace Letra200bSharp.Avalonia.Resources {
                 return ResourceManager.GetString("Common_AlignLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to Concatenate.
+        /// </summary>
+        public static string Common_Concatenate {
+            get {
+                return ResourceManager.GetString("Common_Concatenate", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Add to the Compose tab&apos;s staged elements.
+        /// </summary>
+        public static string Common_ConcatenateTooltip {
+            get {
+                return ResourceManager.GetString("Common_ConcatenateTooltip", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to No cut.
         /// </summary>
@@ -203,7 +239,52 @@ namespace Letra200bSharp.Avalonia.Resources {
                 return ResourceManager.GetString("Common_Save", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to Clear all.
+        /// </summary>
+        public static string ComposeTab_ClearAllButton {
+            get {
+                return ResourceManager.GetString("ComposeTab_ClearAllButton", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Drag to reorder.
+        /// </summary>
+        public static string ComposeTab_DragHandleTooltip {
+            get {
+                return ResourceManager.GetString("ComposeTab_DragHandleTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Nothing staged to print yet..
+        /// </summary>
+        public static string ComposeTab_NoElements {
+            get {
+                return ResourceManager.GetString("ComposeTab_NoElements", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Nothing staged yet - use &quot;Concatenate&quot; on the Image, Text, Barcode, 2D Code, or Draw tab to add elements here..
+        /// </summary>
+        public static string ComposeTab_NoElementsYet {
+            get {
+                return ResourceManager.GetString("ComposeTab_NoElementsYet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Remove.
+        /// </summary>
+        public static string ComposeTab_RemoveButton {
+            get {
+                return ResourceManager.GetString("ComposeTab_RemoveButton", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to + Add label.
         /// </summary>
@@ -619,6 +700,15 @@ namespace Letra200bSharp.Avalonia.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Compose.
+        /// </summary>
+        public static string MainView_ComposeTabHeader {
+            get {
+                return ResourceManager.GetString("MainView_ComposeTabHeader", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to DIN Rail.
         /// </summary>
         public static string MainView_DinRailTabHeader {
@@ -771,6 +861,15 @@ namespace Letra200bSharp.Avalonia.Resources {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Added to composition..
+        /// </summary>
+        public static string Status_AddedToComposition {
+            get {
+                return ResourceManager.GetString("Status_AddedToComposition", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to No device selected..
         /// </summary>

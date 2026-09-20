@@ -15,6 +15,9 @@ public partial class TextTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly CompositionService _composition;
+    private readonly IRenderHelper _render;
+    private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
     public ObservableCollection<string> FontFamilies { get; }
@@ -81,11 +84,14 @@ public partial class TextTabViewModel : ViewModelBase
     /// </summary>
     public bool BoxStyleEnabled => SelectedSize != "XL";
 
-    public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
+    public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _composition = composition;
+        _render = render;
+        _letra = letra;
         _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
@@ -150,7 +156,7 @@ public partial class TextTabViewModel : ViewModelBase
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+                var previewBytes = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -197,7 +203,7 @@ public partial class TextTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true));
+            var job = await Task.Run(() => _letra.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -260,8 +266,39 @@ public partial class TextTabViewModel : ViewModelBase
 
     private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool printed)
     {
-        var thumbnail = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+        var thumbnail = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
         var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase, SelectedAlign);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters, Printed: printed));
+    }
+
+    /// <summary>Adds the current text label to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
+    [RelayCommand]
+    private void Concatenate()
+    {
+        var text = ComposedText;
+        if (string.IsNullOrEmpty(text))
+        {
+            _reportStatus(Strings.TextTab_NoTextEntered, true);
+            return;
+        }
+
+        var fontFamily = SelectedFontFamily ?? "Arial";
+        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
+        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
+        var widthScale = (float)WidthScale;
+        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
+        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
+
+        try
+        {
+            var thumbnail = _render.PreviewImage(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, true);
+            var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign);
+            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Text, text, thumbnail, TextParams: parameters));
+            _reportStatus(Strings.Status_AddedToComposition, false);
+        }
+        catch (Exception ex)
+        {
+            _reportStatus(ex.Message, true);
+        }
     }
 }

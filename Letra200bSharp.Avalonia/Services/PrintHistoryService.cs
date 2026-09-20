@@ -11,7 +11,8 @@ public enum HistoryKind
     Barcode,
     DinRail,
     Qr2D,
-    Draw
+    Draw,
+    Compose
 }
 
 /// <summary>Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.</summary>
@@ -27,7 +28,14 @@ public sealed record TextHistoryParams(
     string Align = "Left");
 
 /// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
-public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut, bool ShowNumber = false);
+public sealed record BarcodeHistoryParams(
+    string Data,
+    string Symbology,
+    bool NoCut,
+    string CaptionPosition = "None",
+    string CaptionFontFamily = "Arial",
+    string CaptionSize = "M",
+    string CaptionAlign = "Center");
 
 /// <summary>Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.</summary>
 public sealed record QrHistoryParams(string Data, string Symbology);
@@ -39,6 +47,15 @@ public sealed record QrHistoryParams(string Data, string Symbology);
 /// keeping the full bytes around is cheap.
 /// </summary>
 public sealed record DrawHistoryParams(byte[] Png, int WidthDots);
+
+/// <summary>
+/// An Image tab's source bytes, kept so it can become one element of a Compose tab strip (see
+/// <see cref="ComposeElement"/>/<see cref="ComposeElementParams"/>). Unlike a plain Image print or
+/// save, this only exists because the user took the deliberate extra step of hitting
+/// "Concatenate" - a regular <see cref="HistoryEntry"/> for an Image job still never keeps the
+/// source bytes (an arbitrary photo could be huge), so this type is never used there.
+/// </summary>
+public sealed record ImageHistoryParams(byte[] ImageBytes, bool PreRendered);
 
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);
@@ -54,12 +71,29 @@ public sealed record DinRailHistoryParams(
     bool ShowSeparators);
 
 /// <summary>
+/// One element of a composed label kept in history - the same per-tab shape as
+/// <see cref="ComposeElement"/> (see the Compose tab's staging list), minus the id and
+/// thumbnail that only matter while it's still being staged.
+/// </summary>
+public sealed record ComposeElementParams(
+    string Kind,
+    string Summary,
+    TextHistoryParams? TextParams = null,
+    BarcodeHistoryParams? BarcodeParams = null,
+    QrHistoryParams? QrParams = null,
+    DrawHistoryParams? DrawParams = null,
+    ImageHistoryParams? ImageParams = null);
+
+/// <summary>Enough of a Compose tab's state to restore it and let the user reprint - see <see cref="ViewModels.ComposeTabViewModel.LoadFrom"/>.</summary>
+public sealed record ComposeHistoryParams(IReadOnlyList<ComposeElementParams> Elements);
+
+/// <summary>
 /// One past print job - or, since <see cref="Printed"/> was added, one deliberately saved design
 /// that was never (yet) sent to a printer, for a user who wants to build up a library of labels
 /// without a Dymo in reach. <see cref="ThumbnailPng"/> is the same PNG bytes
 /// <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/> already produces for
-/// the tab's live preview, so it stays tiny. Only Text, Barcode, 2D Code and DIN Rail jobs carry
-/// enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>) -
+/// the tab's live preview, so it stays tiny. Every job except Image carries enough state to be
+/// reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>/<see cref="DrawParams"/>/<see cref="ComposeParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large
 /// photo), so it shows up in history for reference only.
 /// </summary>
@@ -79,10 +113,11 @@ public sealed record HistoryEntry(
     DinRailHistoryParams? DinRailParams = null,
     QrHistoryParams? QrParams = null,
     bool Printed = true,
-    DrawHistoryParams? DrawParams = null)
+    DrawHistoryParams? DrawParams = null,
+    ComposeHistoryParams? ComposeParams = null)
 {
     [JsonIgnore]
-    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null || QrParams != null || DrawParams != null;
+    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null || QrParams != null || DrawParams != null || ComposeParams != null;
 }
 
 /// <summary>
