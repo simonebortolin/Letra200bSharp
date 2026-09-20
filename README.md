@@ -27,7 +27,7 @@ Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab
 ## Used libraries
 - [SkiaSharp](https://github.com/mono/SkiaSharp) for all image processing - resizing/thresholding source images, rendering text and barcodes to a bitmap, and generating the label previews
 - [InTheHand.BluetoothLE](https://github.com/inthehand/32feet) for cross-platform Bluetooth LE scanning and GATT communication with the printer (Windows, Linux, Android)
-- [ZXing.Net](https://github.com/micjahn/ZXing.Net) for encoding barcode data (Code128, Code39, Codabar, ITF, EAN/UPC, ...) into the bit matrix that gets rendered onto the label
+- [CodeGlyphX](https://github.com/EvotecIT/CodeGlyphX) for encoding barcode data into the module pattern rendered onto the label - both 1D (Code128, Code39, Codabar, ITF, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix)
 - [Avalonia](https://avaloniaui.net/) as the cross-platform UI framework behind the desktop and Android apps
 - [SukiUI](https://github.com/kikipoulet/SukiUI) for the app's visual theme - light/dark styling, the toast notifications, and the busy/loading overlay on the label previews
 - [CommunityToolkit.Mvvm](https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/) for MVVM boilerplate - source-generated observable properties and relay commands in the view models

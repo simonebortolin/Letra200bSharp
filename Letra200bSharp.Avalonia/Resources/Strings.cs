@@ -35,6 +35,7 @@ public static class Strings
     public static string MainView_ImageTabHeader => Get(nameof(MainView_ImageTabHeader));
     public static string MainView_TextTabHeader => Get(nameof(MainView_TextTabHeader));
     public static string MainView_BarcodeTabHeader => Get(nameof(MainView_BarcodeTabHeader));
+    public static string MainView_QrTabHeader => Get(nameof(MainView_QrTabHeader));
     public static string MainView_DinRailTabHeader => Get(nameof(MainView_DinRailTabHeader));
     public static string MainView_HistoryTabHeader => Get(nameof(MainView_HistoryTabHeader));
     public static string MainView_AboutTabHeader => Get(nameof(MainView_AboutTabHeader));
@@ -84,6 +85,13 @@ public static class Strings
     public static string BarcodeTab_SymbologyLabel => Get(nameof(BarcodeTab_SymbologyLabel));
     public static string BarcodeTab_ShowNumberCheckbox => Get(nameof(BarcodeTab_ShowNumberCheckbox));
     public static string BarcodeTab_NoDataEntered => Get(nameof(BarcodeTab_NoDataEntered));
+
+    public static string QrTab_DataLabel => Get(nameof(QrTab_DataLabel));
+    public static string QrTab_DataPlaceholder => Get(nameof(QrTab_DataPlaceholder));
+    public static string QrTab_SymbologyLabel => Get(nameof(QrTab_SymbologyLabel));
+    public static string QrTab_NoDataEntered => Get(nameof(QrTab_NoDataEntered));
+    public static string QrTab_SymbolInfoFormat => Get(nameof(QrTab_SymbolInfoFormat));
+    public static string QrTab_MayNotScanWarning => Get(nameof(QrTab_MayNotScanWarning));
 
     public static string HistoryTab_NoPrintsYet => Get(nameof(HistoryTab_NoPrintsYet));
     public static string HistoryTab_ReprintButton => Get(nameof(HistoryTab_ReprintButton));

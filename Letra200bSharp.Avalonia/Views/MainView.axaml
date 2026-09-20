@@ -66,6 +66,9 @@
                     <TabItem Header="{x:Static res:Strings.MainView_BarcodeTabHeader}">
                         <views:BarcodeTabView DataContext="{Binding Barcode}" />
                     </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_QrTabHeader}">
+                        <views:QrTabView DataContext="{Binding Qr}" />
+                    </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_DinRailTabHeader}">
                         <views:DinRailTabView DataContext="{Binding DinRail}" />
                     </TabItem>

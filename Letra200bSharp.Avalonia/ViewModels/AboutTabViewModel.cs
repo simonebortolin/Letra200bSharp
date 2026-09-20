@@ -38,7 +38,7 @@ public partial class AboutTabViewModel : ViewModelBase
     [
         new("SkiaSharp", "https://github.com/mono/SkiaSharp", "Image processing - resizing/thresholding source images, rendering text and barcodes, generating label previews"),
         new("InTheHand.BluetoothLE", "https://github.com/inthehand/32feet", "Cross-platform Bluetooth LE scanning and GATT communication with the printer"),
-        new("ZXing.Net", "https://github.com/micjahn/ZXing.Net", "Encoding barcode data (Code128, Code39, Codabar, ITF, EAN/UPC, ...) into the bit matrix printed on the label"),
+        new("CodeGlyphX", "https://github.com/EvotecIT/CodeGlyphX", "Encoding 1D (Code128, Code39, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix) barcode data into the module pattern printed on the label"),
         new("Avalonia", "https://avaloniaui.net/", "Cross-platform UI framework behind the desktop and Android apps"),
         new("SukiUI", "https://github.com/kikipoulet/SukiUI", "The app's visual theme - light/dark styling, toast notifications, busy overlays"),
         new("CommunityToolkit.Mvvm", "https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/", "MVVM boilerplate - source-generated observable properties and relay commands"),
