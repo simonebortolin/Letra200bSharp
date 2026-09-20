@@ -1,6 +1,7 @@
 using CommandLine;
 using CommandLine.Text;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Services;
 
 namespace Letra200bSharp.Avalonia.Desktop;
 
@@ -91,6 +92,16 @@ internal class QrOptions
     public LetraHelper.TwoDSymbology Symbology { get; set; }
 }
 
+[Verb("print-symbol", HelpText = "Print a symbol previously saved from the GUI's Draw tab symbol library.")]
+internal class PrintSymbolOptions
+{
+    [Option("address", Required = true, HelpText = "Bluetooth address (or id) of the printer.")]
+    public required string Address { get; set; }
+
+    [Option("name", Required = true, HelpText = "Name of the saved symbol (case-insensitive) - see the Draw tab's symbol library.")]
+    public required string Name { get; set; }
+}
+
 [Verb("din", HelpText = "Print a DIN rail label strip - one or more text segments, each sized to a number of 18mm DIN modules, printed as a single continuous label.")]
 internal class DinOptions
 {
@@ -148,7 +159,7 @@ internal static class Cli
             cfg.AutoHelp = true;
             cfg.AutoVersion = true;
         });
-        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, QrOptions, DinOptions>(args);
+        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, QrOptions, PrintSymbolOptions, DinOptions>(args);
 
         if (parserResult is NotParsed<object> notParsed)
         {
@@ -168,6 +179,7 @@ internal static class Cli
             (TextOptions o) => RunTextAsync(o),
             (BarcodeOptions o) => RunBarcodeAsync(o),
             (QrOptions o) => RunQrAsync(o),
+            (PrintSymbolOptions o) => RunPrintSymbolAsync(o),
             (DinOptions o) => RunDinAsync(o),
             errs => Task.FromResult(1));
     }
@@ -251,6 +263,28 @@ internal static class Cli
         try
         {
             var job = LetraHelper.CreateJob(o.Data, o.Symbology);
+            return await PrintAsync(o.Address, job);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunPrintSymbolAsync(PrintSymbolOptions o)
+    {
+        try
+        {
+            var library = new SymbolLibraryService();
+            var symbol = library.FindByName(o.Name);
+            if (symbol == null)
+            {
+                Console.WriteLine($"Error: no saved symbol named \"{o.Name}\".");
+                return 1;
+            }
+
+            var job = LetraHelper.CreateJob(symbol.PixelPng, noCut: false, preRendered: true);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

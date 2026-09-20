@@ -1,0 +1,134 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
+             xmlns:services="using:Letra200bSharp.Avalonia.Services"
+             xmlns:conv="using:Letra200bSharp.Avalonia.Converters"
+             xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:res="using:Letra200bSharp.Avalonia.Resources"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="640"
+             x:Class="Letra200bSharp.Avalonia.Views.DrawTabView"
+             x:Name="Root"
+             x:DataType="vm:DrawTabViewModel">
+    <UserControl.Styles>
+        <!-- Plain Buttons (not ToggleButton/RadioButton) so a click never fights the Classes
+             binding below - see DrawTabViewModel.IsPenSelected/IsEraserSelected. A literal color
+             rather than a theme resource key, since SukiUI doesn't guarantee the Fluent accent
+             resources a plain Style would otherwise reach for. -->
+        <Style Selector="Button.toolSelected">
+            <Setter Property="Background" Value="#4C6EF5" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="*,Auto" Margin="8">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="10">
+                <!-- Tool options: what a brush stroke does, how wide it is, how many screen
+                     pixels each printer dot gets, and how wide the canvas itself is (feed axis -
+                     the head axis is always the printer's fixed 30 dots). -->
+                <WrapPanel>
+                    <Grid ColumnDefinitions="Auto,Auto,Auto" MinWidth="150" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DrawTab_ToolLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <!-- Two plain buttons rather than a two-item ComboBox - a dropdown for a
+                             binary choice is fiddly to hit on a touch/mobile screen. -->
+                        <Button Grid.Column="1" Content="{x:Static res:Strings.DrawTab_PenTool}" Margin="0,0,4,0"
+                                Classes.toolSelected="{Binding IsPenSelected}"
+                                Command="{Binding SelectToolCommand}" CommandParameter="Pen" />
+                        <Button Grid.Column="2" Content="{x:Static res:Strings.DrawTab_EraserTool}"
+                                Classes.toolSelected="{Binding IsEraserSelected}"
+                                Command="{Binding SelectToolCommand}" CommandParameter="Eraser" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="130" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DrawTab_BrushLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding BrushSizes}" SelectedItem="{Binding BrushSize}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="130" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DrawTab_ZoomLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ZoomLevels}" SelectedItem="{Binding Zoom}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="170" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DrawTab_WidthLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding CanvasWidthDots}" Minimum="8" Maximum="800" Increment="8" FormatString="0" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <CheckBox Content="{x:Static res:Strings.DrawTab_ShowGridCheckbox}" IsChecked="{Binding ShowGrid}" VerticalAlignment="Center" Margin="0,0,16,10" />
+                    <Button Content="{x:Static res:Strings.DrawTab_UndoButton}" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Margin="0,0,8,10" />
+                    <Button Content="{x:Static res:Strings.DrawTab_ClearButton}" Command="{Binding ClearCommand}" Margin="0,0,0,10" />
+                </WrapPanel>
+
+                <!-- The live-edit canvas itself: a WriteableBitmap redrawn at Zoom (vertical) /
+                     HorizontalZoom (horizontal, always half - see DrawTabViewModel.HorizontalZoom
+                     for why) screen pixels per printer dot, so what looks square here prints
+                     square, and individual dots are actually clickable. Both scrollbars are its
+                     own (not the outer ScrollViewer's) since a wide/tall zoomed canvas needs to
+                     scroll independently of the rest of the tab.
+                     MaxHeight (not Height): the canvas's real height is CanvasHeightDots*Zoom,
+                     which varies with the Zoom combo - a fixed Height taller than that (as this
+                     used to be, matching the other tabs' fixed-size preview boxes) left dead,
+                     unreachable space below the top-aligned Image instead of hugging the actual
+                     content, at Zoom's default of 10 exactly 20px = 2 printer dots worth. -->
+                <Border BorderBrush="Gray" BorderThickness="1" Background="White" MaxHeight="320">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <Image x:Name="CanvasImage" Source="{Binding CanvasBitmap}" Stretch="None"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Cross" />
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Trims the canvas to its ink and saves it as a reusable symbol - see
+                     DrawTabViewModel.SaveAsSymbol - independent of Print/Save below, which act on
+                     the whole canvas. -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Column="0" Text="{x:Static res:Strings.DrawTab_SymbolNameLabel}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Column="1" Text="{Binding SymbolName}" PlaceholderText="{x:Static res:Strings.DrawTab_SymbolNamePlaceholder}" />
+                    <Button Grid.Column="2" Content="{x:Static res:Strings.DrawTab_SaveAsSymbolButton}" Margin="8,0,0,0" Command="{Binding SaveAsSymbolCommand}" />
+                </Grid>
+
+                <!-- Personal symbol library - saved independently of print history (see
+                     SymbolLibraryService), reusable across any number of future drawings. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Static res:Strings.DrawTab_SymbolsHeader}" FontWeight="Bold" />
+                    <TextBlock Text="{x:Static res:Strings.DrawTab_NoSymbolsYet}" IsVisible="{Binding !HasSymbols}" Opacity="0.6" FontSize="12" />
+                    <ListBox ItemsSource="{Binding Symbols}" IsVisible="{Binding HasSymbols}" MaxHeight="180">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="services:SavedSymbol">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,2">
+                                    <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Background="White" Width="60" Height="30">
+                                        <Image Stretch="Uniform" Margin="2"
+                                               Source="{Binding PixelPng, Converter={x:Static conv:ByteArrayToBitmapConverter.Instance}}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis" />
+                                    <Button Grid.Column="2" Content="{x:Static res:Strings.DrawTab_LoadSymbolButton}" Margin="4,0"
+                                            Command="{Binding #Root.((vm:DrawTabViewModel)DataContext).LoadSymbolCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="3" Content="{x:Static res:Strings.DrawTab_PrintSymbolButton}" Margin="4,0"
+                                            Command="{Binding #Root.((vm:DrawTabViewModel)DataContext).PrintSymbolCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="4" Content="{x:Static res:Strings.DrawTab_DeleteSymbolButton}"
+                                            Command="{Binding #Root.((vm:DrawTabViewModel)DataContext).DeleteSymbolCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+
+                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                     upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
+                     stretched; only the (possibly long) length axis scrolls. -->
+                <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">
+                    <suki:BusyArea IsBusy="{Binding IsPreviewLoading}">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <Image Source="{Binding PreviewBitmap}" Stretch="None" VerticalAlignment="Center" Margin="4" />
+                        </ScrollViewer>
+                    </suki:BusyArea>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,10,0,0">
+            <Button Content="{x:Static res:Strings.Common_Preview}" Command="{Binding PreviewCommand}" />
+            <Button Content="{x:Static res:Strings.Common_Save}" Command="{Binding SaveCommand}" />
+            <Button Content="{x:Static res:Strings.Common_Print}" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

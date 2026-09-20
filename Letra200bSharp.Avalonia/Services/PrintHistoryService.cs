@@ -10,7 +10,8 @@ public enum HistoryKind
     Text,
     Barcode,
     DinRail,
-    Qr2D
+    Qr2D,
+    Draw
 }
 
 /// <summary>Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.</summary>
@@ -31,6 +32,14 @@ public sealed record BarcodeHistoryParams(string Data, string Symbology, bool No
 /// <summary>Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.</summary>
 public sealed record QrHistoryParams(string Data, string Symbology);
 
+/// <summary>
+/// A Draw tab canvas, kept pixel-exact so it can be reprinted (or reopened for further editing)
+/// - see <see cref="ViewModels.DrawTabViewModel.LoadFrom"/>. Unlike an Image tab job, the source
+/// is always a small, already print-sized monochrome drawing rather than an arbitrary photo, so
+/// keeping the full bytes around is cheap.
+/// </summary>
+public sealed record DrawHistoryParams(byte[] Png, int WidthDots);
+
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);
 
@@ -45,12 +54,20 @@ public sealed record DinRailHistoryParams(
     bool ShowSeparators);
 
 /// <summary>
-/// One past print job. <see cref="ThumbnailPng"/> is the same PNG bytes <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/>
-/// already produces for the tab's live preview, so it stays tiny. Only Text, Barcode, 2D Code
-/// and DIN Rail jobs carry enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>) -
+/// One past print job - or, since <see cref="Printed"/> was added, one deliberately saved design
+/// that was never (yet) sent to a printer, for a user who wants to build up a library of labels
+/// without a Dymo in reach. <see cref="ThumbnailPng"/> is the same PNG bytes
+/// <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/> already produces for
+/// the tab's live preview, so it stays tiny. Only Text, Barcode, 2D Code and DIN Rail jobs carry
+/// enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large
 /// photo), so it shows up in history for reference only.
 /// </summary>
+/// <param name="Printed">
+/// <c>true</c> if this entry came from an actual successful print; <c>false</c> if the user
+/// explicitly saved the design without printing it (see each tab's <c>Save</c> command). Defaults
+/// to <c>true</c> so entries persisted before this field existed still deserialize as prints.
+/// </param>
 public sealed record HistoryEntry(
     Guid Id,
     DateTimeOffset Timestamp,
@@ -60,10 +77,12 @@ public sealed record HistoryEntry(
     TextHistoryParams? TextParams = null,
     BarcodeHistoryParams? BarcodeParams = null,
     DinRailHistoryParams? DinRailParams = null,
-    QrHistoryParams? QrParams = null)
+    QrHistoryParams? QrParams = null,
+    bool Printed = true,
+    DrawHistoryParams? DrawParams = null)
 {
     [JsonIgnore]
-    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null || QrParams != null;
+    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null || QrParams != null || DrawParams != null;
 }
 
 /// <summary>

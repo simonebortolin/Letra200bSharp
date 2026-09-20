@@ -204,7 +204,14 @@ public partial class TextTabViewModel : ViewModelBase
 
             if (result.Printed)
             {
-                RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align);
+                try
+                {
+                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, printed: true);
+                }
+                catch
+                {
+                    // A history-recording failure must never look like the print itself failed.
+                }
             }
         }
         catch (Exception ex)
@@ -218,20 +225,43 @@ public partial class TextTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Best-effort: a history-recording failure must never look like the print itself failed,
-    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
+    /// Saves the current text label to history without printing it - lets a design be kept/reused
+    /// (see <see cref="Services.HistoryEntry.Printed"/>) even without a printer in reach. Unlike
+    /// the best-effort recording after a successful print, a failure here is the whole point of
+    /// the action, so it's reported to the user instead of swallowed.
     /// </summary>
-    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align)
+    [RelayCommand]
+    private void Save()
     {
+        var text = ComposedText;
+        if (string.IsNullOrEmpty(text))
+        {
+            _reportStatus(Strings.TextTab_NoTextEntered, true);
+            return;
+        }
+
+        var fontFamily = SelectedFontFamily ?? "Arial";
+        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
+        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
+        var widthScale = (float)WidthScale;
+        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
+        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
+
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
-            var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase, SelectedAlign);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters));
+            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, printed: false);
+            _reportStatus(Strings.Status_SavedToHistory, false);
         }
-        catch
+        catch (Exception ex)
         {
-            // See summary above.
+            _reportStatus(ex.Message, true);
         }
+    }
+
+    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool printed)
+    {
+        var thumbnail = LetraHelper.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+        var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase, SelectedAlign);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters, Printed: printed));
     }
 }

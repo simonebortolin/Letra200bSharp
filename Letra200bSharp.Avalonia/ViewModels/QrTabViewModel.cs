@@ -158,7 +158,14 @@ public partial class QrTabViewModel : ViewModelBase
 
             if (result.Printed)
             {
-                RecordHistory(data, symbology);
+                try
+                {
+                    RecordHistory(data, symbology, printed: true);
+                }
+                catch
+                {
+                    // A history-recording failure must never look like the print itself failed.
+                }
             }
         }
         catch (Exception ex)
@@ -172,21 +179,37 @@ public partial class QrTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Best-effort: a history-recording failure must never look like the print itself failed,
-    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
+    /// Saves the current 2D code to history without printing it - lets a design be kept/reused
+    /// (see <see cref="Services.HistoryEntry.Printed"/>) even without a printer in reach. Unlike
+    /// the best-effort recording after a successful print, a failure here is the whole point of
+    /// the action, so it's reported to the user instead of swallowed.
     /// </summary>
-    private void RecordHistory(string data, LetraHelper.TwoDSymbology symbology)
+    [RelayCommand]
+    private void Save()
     {
+        var data = Data;
+        if (string.IsNullOrEmpty(data))
+        {
+            _reportStatus(Strings.QrTab_NoDataEntered, true);
+            return;
+        }
+
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(data, symbology);
-            var plan = LetraHelper.PlanTwoDImage(data, symbology);
-            var parameters = new QrHistoryParams(data, SelectedSymbology);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters));
+            RecordHistory(data, CurrentSymbology, printed: false);
+            _reportStatus(Strings.Status_SavedToHistory, false);
         }
-        catch
+        catch (Exception ex)
         {
-            // See summary above.
+            _reportStatus(ex.Message, true);
         }
+    }
+
+    private void RecordHistory(string data, LetraHelper.TwoDSymbology symbology, bool printed)
+    {
+        var thumbnail = LetraHelper.PreviewImage(data, symbology);
+        var plan = LetraHelper.PlanTwoDImage(data, symbology);
+        var parameters = new QrHistoryParams(data, SelectedSymbology);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters, Printed: printed));
     }
 }
