@@ -26,15 +26,7 @@ public partial class QrTabViewModel : ViewModelBase
     private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
-    /// <summary>ComboBox display label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects.</summary>
-    private static readonly (string Label, LetraHelper.TwoDSymbology Value)[] SymbologyChoices =
-    {
-        ("Auto", LetraHelper.TwoDSymbology.Auto),
-        ("QR", LetraHelper.TwoDSymbology.QrCode),
-        ("Micro QR", LetraHelper.TwoDSymbology.MicroQrCode),
-        ("rMQR (rectangular)", LetraHelper.TwoDSymbology.RectangularMicroQrCode),
-        ("Data Matrix", LetraHelper.TwoDSymbology.DataMatrix),
-    };
+    private static IReadOnlyList<(string Label, LetraHelper.TwoDSymbology Value)> SymbologyChoices => QrHistoryParams.SymbologyChoices;
 
     public ObservableCollection<string> Symbologies { get; } = new(SymbologyChoices.Select(c => c.Label));
 
@@ -76,7 +68,7 @@ public partial class QrTabViewModel : ViewModelBase
     }
 
     private LetraHelper.TwoDSymbology CurrentSymbology =>
-        SymbologyChoices.FirstOrDefault(c => c.Label == SelectedSymbology, SymbologyChoices[0]).Value;
+        QrHistoryParams.ParseSymbology(SelectedSymbology);
 
     /// <summary>Restores a previously printed 2D code (see <see cref="Services.HistoryEntry.QrParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
     public void LoadFrom(QrHistoryParams parameters)
@@ -153,6 +145,7 @@ public partial class QrTabViewModel : ViewModelBase
         }
 
         var symbology = CurrentSymbology;
+        var parameters = BuildHistoryParams();
 
         IsBusy = true;
         try
@@ -166,7 +159,7 @@ public partial class QrTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(data, symbology, printed: true);
+                    RecordHistory(parameters, symbology, printed: true);
                 }
                 catch
                 {
@@ -202,7 +195,7 @@ public partial class QrTabViewModel : ViewModelBase
 
         try
         {
-            RecordHistory(data, CurrentSymbology, printed: false);
+            RecordHistory(BuildHistoryParams(), CurrentSymbology, printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -211,12 +204,14 @@ public partial class QrTabViewModel : ViewModelBase
         }
     }
 
-    private void RecordHistory(string data, LetraHelper.TwoDSymbology symbology, bool printed)
+    /// <summary>Snapshot of the tab's current settings, taken before any <c>await</c> so history always records what was actually printed.</summary>
+    private QrHistoryParams BuildHistoryParams() => new(Data, SelectedSymbology);
+
+    private void RecordHistory(QrHistoryParams parameters, LetraHelper.TwoDSymbology symbology, bool printed)
     {
-        var thumbnail = _render.PreviewImage(data, symbology);
-        var plan = _render.PlanTwoDImage(data, symbology);
-        var parameters = new QrHistoryParams(data, SelectedSymbology);
-        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters, Printed: printed));
+        var thumbnail = _render.PreviewImage(parameters.Data, symbology);
+        var plan = _render.PlanTwoDImage(parameters.Data, symbology);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {parameters.Data}", thumbnail, QrParams: parameters, Printed: printed));
     }
 
     /// <summary>Adds the current 2D code to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
@@ -232,11 +227,9 @@ public partial class QrTabViewModel : ViewModelBase
 
         try
         {
-            var symbology = CurrentSymbology;
-            var thumbnail = _render.PreviewImage(data, symbology);
-            var plan = _render.PlanTwoDImage(data, symbology);
-            var parameters = new QrHistoryParams(data, SelectedSymbology);
-            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Qr2D, $"{plan.SymbolName}: {data}", thumbnail, QrParams: parameters));
+            var parameters = BuildHistoryParams();
+            var plan = _render.PlanTwoDImage(data, parameters.ParsedSymbology);
+            _composition.Stage(ComposeElementKind.Qr2D, $"{plan.SymbolName}: {data}", qr: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)

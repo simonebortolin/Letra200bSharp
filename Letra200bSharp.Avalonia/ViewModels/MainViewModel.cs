@@ -74,8 +74,8 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly PrintHistoryService _historyService = new();
     private readonly SymbolLibraryService _symbolLibrary = new();
-    private readonly CompositionService _compositionService = new();
     private readonly IRenderHelper _renderHelper = new RenderHelper();
+    private readonly CompositionService _compositionService;
     private readonly ILetraHelper _letraHelper;
 
     public ImageTabViewModel Image { get; }
@@ -91,6 +91,7 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         _letraHelper = new LetraHelper(_renderHelper);
+        _compositionService = new CompositionService(_renderHelper);
 
         Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Image", result));
         Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Text", result));

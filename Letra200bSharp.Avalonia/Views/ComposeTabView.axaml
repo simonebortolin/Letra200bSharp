@@ -24,7 +24,7 @@
                 <ListBox x:Name="ElementsList" ItemsSource="{Binding Elements}" IsVisible="{Binding HasElements}" DragDrop.AllowDrop="True">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="services:ComposeElement">
-                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,2">
                                 <TextBlock Grid.Column="0" Text="⠿" Cursor="SizeAll" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.6"
                                            PointerPressed="OnDragHandlePointerPressed"
                                            ToolTip.Tip="{x:Static res:Strings.ComposeTab_DragHandleTooltip}" />
@@ -33,7 +33,11 @@
                                            Source="{Binding ThumbnailPng, Converter={x:Static conv:ByteArrayToBitmapConverter.Instance}}" />
                                 </Border>
                                 <TextBlock Grid.Column="2" Text="{Binding Summary}" VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis" />
-                                <Button Grid.Column="3" Content="{x:Static res:Strings.ComposeTab_RemoveButton}"
+                                <Button Grid.Column="3" Content="{x:Static res:Strings.ComposeTab_DuplicateButton}" Margin="0,0,6,0"
+                                        ToolTip.Tip="{x:Static res:Strings.ComposeTab_DuplicateTooltip}"
+                                        Command="{Binding #Root.((vm:ComposeTabViewModel)DataContext).DuplicateElementCommand}"
+                                        CommandParameter="{Binding}" />
+                                <Button Grid.Column="4" Content="{x:Static res:Strings.ComposeTab_RemoveButton}"
                                         Command="{Binding #Root.((vm:ComposeTabViewModel)DataContext).RemoveElementCommand}"
                                         CommandParameter="{Binding}" />
                             </Grid>

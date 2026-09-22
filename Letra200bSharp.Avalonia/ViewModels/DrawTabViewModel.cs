@@ -652,10 +652,8 @@ public partial class DrawTabViewModel : ViewModelBase
 
         try
         {
-            var png = EncodePixelsPng(_pixels);
-            var thumbnail = _render.PreviewImage(png, noCut: false, preRendered: true);
-            var parameters = new DrawHistoryParams(png, CanvasWidthDots);
-            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Draw, Strings.DrawTab_DefaultHistoryLabel, thumbnail, DrawParams: parameters));
+            var parameters = new DrawHistoryParams(EncodePixelsPng(_pixels), CanvasWidthDots);
+            _composition.Stage(ComposeElementKind.Draw, Strings.DrawTab_DefaultHistoryLabel, draw: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)
