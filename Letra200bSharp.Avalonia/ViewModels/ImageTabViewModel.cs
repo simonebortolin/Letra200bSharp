@@ -13,6 +13,9 @@ public partial class ImageTabViewModel : ViewModelBase
     private readonly Func<BluetoothDevice?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
+    private readonly CompositionService _composition;
+    private readonly IRenderHelper _render;
+    private readonly ILetraHelper _letra;
     private readonly Action<LetraPrintResult> _recordStats;
 
     /// <summary>
@@ -53,11 +56,14 @@ public partial class ImageTabViewModel : ViewModelBase
     /// </summary>
     public bool NoCutEnabled => PreRendered;
 
-    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, Action<LetraPrintResult> recordStats)
+    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
+        _composition = composition;
+        _render = render;
+        _letra = letra;
         _recordStats = recordStats;
     }
 
@@ -103,7 +109,7 @@ public partial class ImageTabViewModel : ViewModelBase
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
+                var previewBytes = _render.PreviewImage(imageBytes, noCut, preRendered);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -145,7 +151,7 @@ public partial class ImageTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => LetraHelper.CreateJob(imageBytes, noCut, preRendered));
+            var job = await Task.Run(() => _letra.CreateJob(imageBytes, noCut, preRendered));
 
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
@@ -153,7 +159,14 @@ public partial class ImageTabViewModel : ViewModelBase
 
             if (result.Printed)
             {
-                RecordHistory(imageBytes, noCut, preRendered);
+                try
+                {
+                    RecordHistory(imageBytes, noCut, preRendered, printed: true);
+                }
+                catch
+                {
+                    // A history-recording failure must never look like the print itself failed.
+                }
             }
         }
         catch (Exception ex)
@@ -167,20 +180,64 @@ public partial class ImageTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Best-effort: a history-recording failure must never look like the print itself failed,
-    /// so this is never allowed to bubble into <see cref="PrintAsync"/>'s own error reporting.
-    /// No reprint parameters are kept for images - see <see cref="Services.HistoryEntry"/>.
+    /// Saves the current image to history without printing it - lets a design be kept/reused
+    /// (see <see cref="Services.HistoryEntry.Printed"/>) even without a printer in reach. Unlike
+    /// the best-effort recording after a successful print, a failure here is the whole point of
+    /// the action, so it's reported to the user instead of swallowed. No reprint parameters are
+    /// kept for images either way - see <see cref="Services.HistoryEntry"/>.
     /// </summary>
-    private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered)
+    [RelayCommand]
+    private void Save()
     {
+        if (_imageBytes == null)
+        {
+            _reportStatus(Strings.ImageTab_NoImageSelected, true);
+            return;
+        }
+
         try
         {
-            var thumbnail = LetraHelper.PreviewImage(imageBytes, noCut, preRendered);
-            _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail));
+            RecordHistory(_imageBytes, NoCut, PreRendered, printed: false);
+            _reportStatus(Strings.Status_SavedToHistory, false);
         }
-        catch
+        catch (Exception ex)
         {
-            // See summary above.
+            _reportStatus(ex.Message, true);
+        }
+    }
+
+    private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered, bool printed)
+    {
+        var thumbnail = _render.PreviewImage(imageBytes, noCut, preRendered);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail, Printed: printed));
+    }
+
+    /// <summary>
+    /// Adds the current image to the Compose tab's staging list (see <see cref="CompositionService"/>)
+    /// - lets it become one part of a longer, multi-element printed strip. Only the already
+    /// thresholded, print-sized content is kept (see <see cref="ImageHistoryParams"/>), never the
+    /// source photo.
+    /// </summary>
+    [RelayCommand]
+    private void Concatenate()
+    {
+        if (_imageBytes == null)
+        {
+            _reportStatus(Strings.ImageTab_NoImageSelected, true);
+            return;
+        }
+
+        try
+        {
+            // Forced noCut:false, like every other element type, so this lines up at the same
+            // height as the rest of the composition regardless of what's checked on this tab.
+            var parameters = new ImageHistoryParams(_render.RenderImageContentImage(_imageBytes, PreRendered, noCut: false));
+            _composition.Stage(ComposeElementKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, image: parameters);
+            _reportStatus(Strings.Status_AddedToComposition, false);
+        }
+        catch (Exception ex)
+        {
+            _reportStatus(ex.Message, true);
         }
     }
 }

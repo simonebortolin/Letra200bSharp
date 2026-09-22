@@ -65,6 +65,15 @@
   <data name="Common_Preview" xml:space="preserve">
     <value>Preview</value>
   </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common_Concatenate" xml:space="preserve">
+    <value>Concatenate</value>
+  </data>
+  <data name="Common_ConcatenateTooltip" xml:space="preserve">
+    <value>Add to the Compose tab's staged elements</value>
+  </data>
   <data name="Common_NoCut" xml:space="preserve">
     <value>No cut</value>
   </data>
@@ -88,8 +97,17 @@
   <data name="MainView_BarcodeTabHeader" xml:space="preserve">
     <value>Barcode</value>
   </data>
+  <data name="MainView_QrTabHeader" xml:space="preserve">
+    <value>2D Code</value>
+  </data>
+  <data name="MainView_DrawTabHeader" xml:space="preserve">
+    <value>Draw</value>
+  </data>
   <data name="MainView_DinRailTabHeader" xml:space="preserve">
     <value>DIN Rail</value>
+  </data>
+  <data name="MainView_ComposeTabHeader" xml:space="preserve">
+    <value>Compose</value>
   </data>
   <data name="MainView_HistoryTabHeader" xml:space="preserve">
     <value>History</value>
@@ -142,8 +160,14 @@
   <data name="BarcodeTab_SymbologyLabel" xml:space="preserve">
     <value>Symbology:</value>
   </data>
-  <data name="BarcodeTab_ShowNumberCheckbox" xml:space="preserve">
-    <value>Show number</value>
+  <data name="BarcodeTab_CaptionPositionLabel" xml:space="preserve">
+    <value>Caption:</value>
+  </data>
+  <data name="BarcodeTab_CaptionFontLabel" xml:space="preserve">
+    <value>Caption font:</value>
+  </data>
+  <data name="BarcodeTab_CaptionSizeLabel" xml:space="preserve">
+    <value>Caption size:</value>
   </data>
 
   <data name="HistoryTab_NoPrintsYet" xml:space="preserve">
@@ -154,6 +178,9 @@
   </data>
   <data name="HistoryTab_DeleteButton" xml:space="preserve">
     <value>Delete</value>
+  </data>
+  <data name="HistoryTab_SavedBadge" xml:space="preserve">
+    <value>· saved, not printed</value>
   </data>
 
   <data name="MainView_StatsToggleButtonTooltip" xml:space="preserve">
@@ -173,6 +200,12 @@
     <value>Dymo LetraTag 200B not found.</value>
   </data>
 
+  <data name="Status_SavedToHistory" xml:space="preserve">
+    <value>Saved to history.</value>
+  </data>
+  <data name="Status_AddedToComposition" xml:space="preserve">
+    <value>Added to composition.</value>
+  </data>
   <data name="Status_UnableToGeneratePreview" xml:space="preserve">
     <value>Unable to generate preview: {0}</value>
   </data>
@@ -239,6 +272,112 @@
 
   <data name="BarcodeTab_NoDataEntered" xml:space="preserve">
     <value>No barcode data entered.</value>
+  </data>
+
+  <data name="QrTab_DataLabel" xml:space="preserve">
+    <value>Data:</value>
+  </data>
+  <data name="QrTab_DataPlaceholder" xml:space="preserve">
+    <value>e.g. https://example.com/  or  RACK-A17-BIN-04</value>
+  </data>
+  <data name="QrTab_SymbologyLabel" xml:space="preserve">
+    <value>Symbology:</value>
+  </data>
+  <data name="QrTab_NoDataEntered" xml:space="preserve">
+    <value>No 2D code data entered.</value>
+  </data>
+  <data name="QrTab_SymbolInfoFormat" xml:space="preserve">
+    <value>{0}  ·  {1}×{2} dots/module  ·  ~{3:0.00} mm</value>
+    <comment>0 = symbol name, 1 = head-axis dots/module, 2 = feed-axis dots/module, 3 = module size in mm</comment>
+  </data>
+  <data name="QrTab_MayNotScanWarning" xml:space="preserve">
+    <value>At ~0.16 mm per module this code is at or below the practical limit for phone-camera scanning and is vulnerable to thermal dot gain. Prefer rMQR or Micro QR, or shorten the data.</value>
+  </data>
+
+  <data name="DrawTab_ToolLabel" xml:space="preserve">
+    <value>Tool:</value>
+  </data>
+  <data name="DrawTab_PenTool" xml:space="preserve">
+    <value>Pen</value>
+  </data>
+  <data name="DrawTab_EraserTool" xml:space="preserve">
+    <value>Eraser</value>
+  </data>
+  <data name="DrawTab_ShowGridCheckbox" xml:space="preserve">
+    <value>Show grid</value>
+  </data>
+  <data name="DrawTab_BrushLabel" xml:space="preserve">
+    <value>Brush:</value>
+  </data>
+  <data name="DrawTab_ZoomLabel" xml:space="preserve">
+    <value>Zoom:</value>
+  </data>
+  <data name="DrawTab_WidthLabel" xml:space="preserve">
+    <value>Width (dots):</value>
+  </data>
+  <data name="DrawTab_UndoButton" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="DrawTab_ClearButton" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="DrawTab_NothingDrawn" xml:space="preserve">
+    <value>Nothing drawn yet.</value>
+  </data>
+  <data name="DrawTab_DefaultHistoryLabel" xml:space="preserve">
+    <value>Drawing</value>
+  </data>
+  <data name="DrawTab_SymbolNameLabel" xml:space="preserve">
+    <value>Symbol name:</value>
+  </data>
+  <data name="DrawTab_SymbolNamePlaceholder" xml:space="preserve">
+    <value>e.g. Warning triangle</value>
+  </data>
+  <data name="DrawTab_SaveAsSymbolButton" xml:space="preserve">
+    <value>Save as symbol</value>
+  </data>
+  <data name="DrawTab_DefaultSymbolNameFormat" xml:space="preserve">
+    <value>Symbol {0:HH:mm:ss}</value>
+  </data>
+  <data name="DrawTab_SymbolSaved" xml:space="preserve">
+    <value>Symbol saved.</value>
+  </data>
+  <data name="DrawTab_SymbolsHeader" xml:space="preserve">
+    <value>Saved symbols</value>
+  </data>
+  <data name="DrawTab_NoSymbolsYet" xml:space="preserve">
+    <value>No symbols saved yet - draw something above and use "Save as symbol".</value>
+  </data>
+  <data name="DrawTab_LoadSymbolButton" xml:space="preserve">
+    <value>Load</value>
+  </data>
+  <data name="DrawTab_PrintSymbolButton" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="DrawTab_DeleteSymbolButton" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+
+  <data name="ComposeTab_NoElementsYet" xml:space="preserve">
+    <value>Nothing staged yet - use "Concatenate" on the Image, Text, Barcode, 2D Code, or Draw tab to add elements here.</value>
+  </data>
+  <data name="ComposeTab_DragHandleTooltip" xml:space="preserve">
+    <value>Drag to reorder</value>
+  </data>
+  <data name="ComposeTab_RemoveButton" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="ComposeTab_DuplicateButton" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="ComposeTab_DuplicateTooltip" xml:space="preserve">
+    <value>Insert a copy of this element right after it</value>
+  </data>
+  <data name="ComposeTab_ClearAllButton" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <data name="ComposeTab_NoElements" xml:space="preserve">
+    <value>Nothing staged to print yet.</value>
   </data>
 
   <data name="AboutTab_Tagline" xml:space="preserve">

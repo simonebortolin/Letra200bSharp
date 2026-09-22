@@ -24,9 +24,8 @@ public partial class AboutTabViewModel : ViewModelBase
     public string AppTagline => Strings.AboutTab_Tagline;
 
     /// <summary>
-    /// The assembly's version, or "dev" if it was built without one (e.g. a local build with
-    /// no version stamped into the csproj/CI pipeline) - there's no reliable version to show
-    /// either way, so this just avoids printing a misleading "0.0.0.0".
+    /// The build's full version including any pre-release suffix (e.g. "1.4.0-pr.12.34" for a
+    /// pull request pre-release), or "dev" if it was built without one.
     /// </summary>
     public string AppVersion { get; } = FormatVersion();
 
@@ -34,17 +33,39 @@ public partial class AboutTabViewModel : ViewModelBase
 
     public string LicenseUrl => "https://github.com/simonebortolin/Letra200bSharp/blob/main/LICENSE";
 
-    public IReadOnlyList<AboutLinkItem> Libraries { get; } =
-    [
-        new("SkiaSharp", "https://github.com/mono/SkiaSharp", "Image processing - resizing/thresholding source images, rendering text and barcodes, generating label previews"),
-        new("InTheHand.BluetoothLE", "https://github.com/inthehand/32feet", "Cross-platform Bluetooth LE scanning and GATT communication with the printer"),
-        new("ZXing.Net", "https://github.com/micjahn/ZXing.Net", "Encoding barcode data (Code128, Code39, Codabar, ITF, EAN/UPC, ...) into the bit matrix printed on the label"),
-        new("Avalonia", "https://avaloniaui.net/", "Cross-platform UI framework behind the desktop and Android apps"),
-        new("SukiUI", "https://github.com/kikipoulet/SukiUI", "The app's visual theme - light/dark styling, toast notifications, busy overlays"),
-        new("CommunityToolkit.Mvvm", "https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/", "MVVM boilerplate - source-generated observable properties and relay commands"),
-        new("CommandLineParser", "https://github.com/commandlineparser/commandline", "Parsing arguments in the desktop app's headless CLI mode"),
-        new("CsWin32", "https://github.com/microsoft/cswin32", "Source-generated, type-safe P/Invoke on Windows"),
-    ];
+    public IReadOnlyList<AboutLinkItem> Libraries { get; } = BuildLibraries();
+
+    /// <summary>
+    /// Builds the credited library list, leaving out two entries the running build/platform
+    /// doesn't actually use: <c>CommandLineParser</c> only backs the desktop head's CLI mode (the
+    /// Android head never builds it in), and <c>CsWin32</c> is Windows-only P/Invoke (reattaching
+    /// the CLI's output to the parent console), so it's skipped even on a desktop Linux run.
+    /// </summary>
+    private static IReadOnlyList<AboutLinkItem> BuildLibraries()
+    {
+        var libraries = new List<AboutLinkItem>
+        {
+            new("SkiaSharp", "https://github.com/mono/SkiaSharp", "Image processing - resizing/thresholding source images, rendering text and barcodes, generating label previews"),
+            new("InTheHand.BluetoothLE", "https://github.com/inthehand/32feet", "Cross-platform Bluetooth LE scanning and GATT communication with the printer"),
+            new("CodeGlyphX", "https://github.com/EvotecIT/CodeGlyphX", "Encoding 1D (Code128, Code39, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix) barcode data into the module pattern printed on the label"),
+            new("Avalonia", "https://avaloniaui.net/", "Cross-platform UI framework behind the desktop and Android apps"),
+            new("SukiUI", "https://github.com/kikipoulet/SukiUI", "The app's visual theme - light/dark styling, toast notifications, busy overlays"),
+            new("CommunityToolkit.Mvvm", "https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/", "MVVM boilerplate - source-generated observable properties and relay commands"),
+        };
+
+        // Only the Android head lacks a CLI entirely - both desktop TFMs (Windows and Linux) build it in.
+        if (!OperatingSystem.IsAndroid())
+        {
+            libraries.Add(new("CommandLineParser", "https://github.com/commandlineparser/commandline", "Parsing arguments in the desktop app's headless CLI mode"));
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            libraries.Add(new("CsWin32", "https://github.com/microsoft/cswin32", "Source-generated, type-safe P/Invoke on Windows"));
+        }
+
+        return libraries;
+    }
 
     public IReadOnlyList<AboutLinkItem> Acknowledgements { get; } =
     [
@@ -57,8 +78,10 @@ public partial class AboutTabViewModel : ViewModelBase
 
     private static string FormatVersion()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        return version == null ? "dev" : $"{version.Major}.{version.Minor}.{version.Build}";
+        // AssemblyVersion is numeric-only, so a pre-release would look identical to its release;
+        // the informational version keeps the suffix. The SDK appends "+<commit>" to it - drop that.
+        var informational = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return string.IsNullOrEmpty(informational) ? "dev" : informational.Split('+')[0];
     }
 
     [RelayCommand]
