@@ -214,10 +214,9 @@ public partial class ImageTabViewModel : ViewModelBase
 
     /// <summary>
     /// Adds the current image to the Compose tab's staging list (see <see cref="CompositionService"/>)
-    /// - lets it become one part of a longer, multi-element printed strip. Unlike Save/Print's
-    /// history recording, this is the one place an Image tab's source bytes actually get kept -
-    /// see <see cref="ImageHistoryParams"/> - because staging is a deliberate, explicit action
-    /// rather than the passive rolling log History is.
+    /// - lets it become one part of a longer, multi-element printed strip. Only the already
+    /// thresholded, print-sized content is kept (see <see cref="ImageHistoryParams"/>), never the
+    /// source photo.
     /// </summary>
     [RelayCommand]
     private void Concatenate()
@@ -232,9 +231,8 @@ public partial class ImageTabViewModel : ViewModelBase
         {
             // Forced noCut:false, like every other element type, so this lines up at the same
             // height as the rest of the composition regardless of what's checked on this tab.
-            var thumbnail = _render.PreviewImage(_imageBytes, noCut: false, PreRendered);
-            var parameters = new ImageHistoryParams(_imageBytes, PreRendered);
-            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail, ImageParams: parameters));
+            var parameters = new ImageHistoryParams(_render.RenderImageContentImage(_imageBytes, PreRendered, noCut: false));
+            _composition.Stage(ComposeElementKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, image: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)

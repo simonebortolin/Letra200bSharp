@@ -16,6 +16,13 @@ namespace Letra200bSharp
     public class RenderHelper : IRenderHelper
     {
         /// <summary>
+        /// Minimum luma distance between Otsu's two cluster means for the split to count as real
+        /// content - below it the image is treated as uniform. Well under a yellow-on-white logo's
+        /// ~29 (which must still print) and well above JPEG noise or paper shading.
+        /// </summary>
+        private const double MinOtsuClusterContrast = 20;
+
+        /// <summary>
         /// Picks the luma cutoff (0..255) that best splits <paramref name="histogram"/> (256
         /// bins, one per luma value 0..255) into a darker and a lighter cluster - Otsu's method:
         /// the split that maximizes the variance between the two clusters' means, which in
@@ -26,8 +33,10 @@ namespace Letra200bSharp
         /// entirely above 128 in absolute luma, and would vanish under a fixed threshold even
         /// though it's clearly its own cluster once you look at where the image's actual
         /// brightness values fall rather than an arbitrary fixed number. Falls back to the old
-        /// fixed 128 for a degenerate histogram (empty, or everything in one bin) where there's no
-        /// real split to find.
+        /// fixed 128 when there's no real split to find: an empty/single-bin histogram, or one
+        /// whose best two clusters are less than <see cref="MinOtsuClusterContrast"/> apart - Otsu
+        /// always splits somewhere, so without this a near-uniform image (off-white paper, JPEG
+        /// noise, a faint gradient) would get its background split into black blobs.
         /// </summary>
         /// <returns>The luma value V such that darker-than-V pixels are the ink and V-or-lighter pixels are the background - see <see cref="PrepareBitmap"/>'s use of it.</returns>
         private int ComputeOtsuThreshold(int[] histogram)
@@ -52,6 +61,7 @@ namespace Letra200bSharp
             long weightDarker = 0;
             double sumDarker = 0;
             double bestVariance = -1;
+            double bestMeanDelta = 0;
             int bestSplit = 127;
 
             for (int t = 0; t < 255; t++)
@@ -77,8 +87,14 @@ namespace Letra200bSharp
                 if (variance > bestVariance)
                 {
                     bestVariance = variance;
+                    bestMeanDelta = -meanDelta;
                     bestSplit = t;
                 }
+            }
+
+            if (bestMeanDelta < MinOtsuClusterContrast)
+            {
+                return 128;
             }
 
             // Luma <= bestSplit is the darker cluster (ink); the caller compares with "<", so +1

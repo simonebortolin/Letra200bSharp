@@ -199,6 +199,7 @@ public partial class TextTabViewModel : ViewModelBase
         var widthScale = (float)WidthScale;
         var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
         var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
+        var parameters = BuildHistoryParams();
 
         IsBusy = true;
         try
@@ -212,7 +213,7 @@ public partial class TextTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, printed: true);
+                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, parameters, printed: true);
                 }
                 catch
                 {
@@ -255,7 +256,7 @@ public partial class TextTabViewModel : ViewModelBase
 
         try
         {
-            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, printed: false);
+            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, BuildHistoryParams(), printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -264,10 +265,13 @@ public partial class TextTabViewModel : ViewModelBase
         }
     }
 
-    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool printed)
+    /// <summary>Snapshot of the tab's current settings, taken before any <c>await</c> so history always records what was actually printed.</summary>
+    private TextHistoryParams BuildHistoryParams() =>
+        new(Line1, Line2, SelectedFontFamily ?? "Arial", SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign);
+
+    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, TextHistoryParams parameters, bool printed)
     {
         var thumbnail = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
-        var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, upperCase, SelectedAlign);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters, Printed: printed));
     }
 
@@ -282,18 +286,9 @@ public partial class TextTabViewModel : ViewModelBase
             return;
         }
 
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var widthScale = (float)WidthScale;
-        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-
         try
         {
-            var thumbnail = _render.PreviewImage(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, true);
-            var parameters = new TextHistoryParams(Line1, Line2, fontFamily, SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign);
-            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Text, text, thumbnail, TextParams: parameters));
+            _composition.Stage(ComposeElementKind.Text, text, text: BuildHistoryParams());
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)

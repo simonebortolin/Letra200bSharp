@@ -75,15 +75,20 @@ public partial class BarcodeTabViewModel : ViewModelBase
         SelectedCaptionFontFamily = fontFamilies.Contains("Arial") ? "Arial" : fontFamilies.FirstOrDefault();
     }
 
-    private LetraHelper.CaptionOptions BuildCaption() => new(
-        Enum.Parse<LetraHelper.CaptionPosition>(SelectedCaptionPosition),
-        SelectedCaptionFontFamily ?? "Arial",
-        Enum.Parse<LetraHelper.CaptionSize>(SelectedCaptionSize),
-        Enum.Parse<LetraHelper.TextAlign>(SelectedCaptionAlign));
+    /// <summary>
+    /// Snapshot of the tab's current settings - the single source for rendering, history and
+    /// staging, taken before any <c>await</c> so a setting changed mid-print can't make the saved
+    /// entry disagree with what was actually printed.
+    /// </summary>
+    private BarcodeHistoryParams BuildHistoryParams() =>
+        new(Data, SelectedSymbology, NoCut, SelectedCaptionPosition, SelectedCaptionFontFamily ?? "Arial", SelectedCaptionSize, SelectedCaptionAlign);
+
+    private static string Summary(BarcodeHistoryParams parameters) => $"{parameters.Symbology}: {parameters.Data}";
 
     /// <summary>Restores a previously printed barcode (see <see cref="Services.HistoryEntry.BarcodeParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
     public void LoadFrom(BarcodeHistoryParams parameters)
     {
+        parameters = parameters.WithLegacyCaptionMigrated();
         Data = parameters.Data;
         SelectedSymbology = parameters.Symbology;
         NoCut = parameters.NoCut;
@@ -110,16 +115,14 @@ public partial class BarcodeTabViewModel : ViewModelBase
             return;
         }
 
-        var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
-        var noCut = NoCut;
-        var caption = BuildCaption();
+        var parameters = BuildHistoryParams();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(data, symbology, noCut, caption);
+                var previewBytes = _render.PreviewImage(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption());
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -155,14 +158,12 @@ public partial class BarcodeTabViewModel : ViewModelBase
             return;
         }
 
-        var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
-        var noCut = NoCut;
-        var caption = BuildCaption();
+        var parameters = BuildHistoryParams();
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(data, symbology, noCut, caption));
+            var job = await Task.Run(() => _letra.CreateJob(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption()));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -171,7 +172,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(data, symbology, noCut, caption, printed: true);
+                    RecordHistory(parameters, printed: true);
                 }
                 catch
                 {
@@ -205,10 +206,9 @@ public partial class BarcodeTabViewModel : ViewModelBase
             return;
         }
 
-        var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
         try
         {
-            RecordHistory(data, symbology, NoCut, BuildCaption(), printed: false);
+            RecordHistory(BuildHistoryParams(), printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -217,11 +217,10 @@ public partial class BarcodeTabViewModel : ViewModelBase
         }
     }
 
-    private void RecordHistory(string data, LetraHelper.BarcodeSymbology symbology, bool noCut, LetraHelper.CaptionOptions caption, bool printed)
+    private void RecordHistory(BarcodeHistoryParams parameters, bool printed)
     {
-        var thumbnail = _render.PreviewImage(data, symbology, noCut, caption);
-        var parameters = new BarcodeHistoryParams(data, SelectedSymbology, noCut, SelectedCaptionPosition, SelectedCaptionFontFamily ?? "Arial", SelectedCaptionSize, SelectedCaptionAlign);
-        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, $"{SelectedSymbology}: {data}", thumbnail, BarcodeParams: parameters, Printed: printed));
+        var thumbnail = _render.PreviewImage(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption());
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, Summary(parameters), thumbnail, BarcodeParams: parameters, Printed: printed));
     }
 
     /// <summary>Adds the current barcode to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
@@ -235,13 +234,10 @@ public partial class BarcodeTabViewModel : ViewModelBase
             return;
         }
 
-        var symbology = Enum.Parse<LetraHelper.BarcodeSymbology>(SelectedSymbology);
         try
         {
-            var caption = BuildCaption();
-            var thumbnail = _render.PreviewImage(data, symbology, NoCut, caption);
-            var parameters = new BarcodeHistoryParams(data, SelectedSymbology, NoCut, SelectedCaptionPosition, SelectedCaptionFontFamily ?? "Arial", SelectedCaptionSize, SelectedCaptionAlign);
-            _composition.Add(new ComposeElement(Guid.NewGuid(), ComposeElementKind.Barcode, $"{SelectedSymbology}: {data}", thumbnail, BarcodeParams: parameters));
+            var parameters = BuildHistoryParams();
+            _composition.Stage(ComposeElementKind.Barcode, Summary(parameters), barcode: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)

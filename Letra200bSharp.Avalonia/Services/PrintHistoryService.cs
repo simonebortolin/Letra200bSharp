@@ -28,6 +28,11 @@ public sealed record TextHistoryParams(
     string Align = "Left");
 
 /// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
+/// <param name="ShowNumber">
+/// Legacy (pre-1.4) flag, read only from existing history files and never written back. It
+/// predates the configurable caption, and <see cref="WithLegacyCaptionMigrated"/> maps it to the
+/// caption it always rendered as.
+/// </param>
 public sealed record BarcodeHistoryParams(
     string Data,
     string Symbology,
@@ -35,10 +40,45 @@ public sealed record BarcodeHistoryParams(
     string CaptionPosition = "None",
     string CaptionFontFamily = "Arial",
     string CaptionSize = "M",
-    string CaptionAlign = "Center");
+    string CaptionAlign = "Center",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false)
+{
+    /// <summary>The old fixed "show number" caption was exactly Below / Arial / M / Center.</summary>
+    public BarcodeHistoryParams WithLegacyCaptionMigrated() =>
+        ShowNumber && CaptionPosition == nameof(LetraHelper.CaptionPosition.None)
+            ? this with { CaptionPosition = nameof(LetraHelper.CaptionPosition.Below), CaptionFontFamily = "Arial", CaptionSize = nameof(LetraHelper.CaptionSize.M), CaptionAlign = nameof(LetraHelper.TextAlign.Center), ShowNumber = false }
+            : this;
+
+    [JsonIgnore]
+    public LetraHelper.BarcodeSymbology ParsedSymbology => Enum.Parse<LetraHelper.BarcodeSymbology>(Symbology);
+
+    public LetraHelper.CaptionOptions ToCaption() => new(
+        Enum.Parse<LetraHelper.CaptionPosition>(CaptionPosition),
+        CaptionFontFamily,
+        Enum.Parse<LetraHelper.CaptionSize>(CaptionSize),
+        Enum.Parse<LetraHelper.TextAlign>(CaptionAlign));
+}
 
 /// <summary>Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.</summary>
-public sealed record QrHistoryParams(string Data, string Symbology);
+/// <param name="Symbology">The 2D Code tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.</param>
+public sealed record QrHistoryParams(string Data, string Symbology)
+{
+    /// <summary>2D Code tab ComboBox label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
+    public static readonly IReadOnlyList<(string Label, LetraHelper.TwoDSymbology Value)> SymbologyChoices = new[]
+    {
+        ("Auto", LetraHelper.TwoDSymbology.Auto),
+        ("QR", LetraHelper.TwoDSymbology.QrCode),
+        ("Micro QR", LetraHelper.TwoDSymbology.MicroQrCode),
+        ("rMQR (rectangular)", LetraHelper.TwoDSymbology.RectangularMicroQrCode),
+        ("Data Matrix", LetraHelper.TwoDSymbology.DataMatrix),
+    };
+
+    public static LetraHelper.TwoDSymbology ParseSymbology(string label) =>
+        SymbologyChoices.FirstOrDefault(c => c.Label == label, SymbologyChoices[0]).Value;
+
+    [JsonIgnore]
+    public LetraHelper.TwoDSymbology ParsedSymbology => ParseSymbology(Symbology);
+}
 
 /// <summary>
 /// A Draw tab canvas, kept pixel-exact so it can be reprinted (or reopened for further editing)
@@ -49,13 +89,13 @@ public sealed record QrHistoryParams(string Data, string Symbology);
 public sealed record DrawHistoryParams(byte[] Png, int WidthDots);
 
 /// <summary>
-/// An Image tab's source bytes, kept so it can become one element of a Compose tab strip (see
-/// <see cref="ComposeElement"/>/<see cref="ComposeElementParams"/>). Unlike a plain Image print or
-/// save, this only exists because the user took the deliberate extra step of hitting
-/// "Concatenate" - a regular <see cref="HistoryEntry"/> for an Image job still never keeps the
-/// source bytes (an arbitrary photo could be huge), so this type is never used there.
+/// An Image tab element of a Compose tab strip (see <see cref="ComposeElement"/>/<see cref="ComposeElementParams"/>),
+/// kept as its already thresholded and print-sized content PNG (see
+/// <see cref="IRenderHelper.RenderImageContentImage"/>), never the source photo. That keeps
+/// composition.json and history.json small no matter how large the original image was, and
+/// avoids re-thresholding the photo on every preview.
 /// </summary>
-public sealed record ImageHistoryParams(byte[] ImageBytes, bool PreRendered);
+public sealed record ImageHistoryParams(byte[] ContentPng);
 
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);

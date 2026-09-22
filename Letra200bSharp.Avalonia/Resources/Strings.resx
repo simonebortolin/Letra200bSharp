@@ -367,6 +367,12 @@
   <data name="ComposeTab_RemoveButton" xml:space="preserve">
     <value>Remove</value>
   </data>
+  <data name="ComposeTab_DuplicateButton" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="ComposeTab_DuplicateTooltip" xml:space="preserve">
+    <value>Insert a copy of this element right after it</value>
+  </data>
   <data name="ComposeTab_ClearAllButton" xml:space="preserve">
     <value>Clear all</value>
   </data>

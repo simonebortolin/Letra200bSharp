@@ -286,6 +286,24 @@ namespace Letra200bSharp.Avalonia.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Duplicate.
+        /// </summary>
+        public static string ComposeTab_DuplicateButton {
+            get {
+                return ResourceManager.GetString("ComposeTab_DuplicateButton", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Insert a copy of this element right after it.
+        /// </summary>
+        public static string ComposeTab_DuplicateTooltip {
+            get {
+                return ResourceManager.GetString("ComposeTab_DuplicateTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to + Add label.
         /// </summary>
         public static string DinRailTab_AddRowButton {
