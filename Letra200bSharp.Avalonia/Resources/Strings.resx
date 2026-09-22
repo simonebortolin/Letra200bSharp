@@ -150,6 +150,24 @@
   <data name="TextTab_UppercaseCheckbox" xml:space="preserve">
     <value>ALL UPPERCASE</value>
   </data>
+  <data name="TextTab_BoldCheckbox" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="TextTab_ItalicCheckbox" xml:space="preserve">
+    <value>Italic</value>
+  </data>
+  <data name="TextTab_UnderlineCheckbox" xml:space="preserve">
+    <value>Underline</value>
+  </data>
+  <data name="TextTab_StrikethroughCheckbox" xml:space="preserve">
+    <value>Strikethrough</value>
+  </data>
+  <data name="TextTab_LetterSpacingLabel" xml:space="preserve">
+    <value>Letter spacing:</value>
+  </data>
+  <data name="TextTab_FrameSpacingLabel" xml:space="preserve">
+    <value>Frame margin (T/B/L/R):</value>
+  </data>
 
   <data name="BarcodeTab_DataLabel" xml:space="preserve">
     <value>Data:</value>

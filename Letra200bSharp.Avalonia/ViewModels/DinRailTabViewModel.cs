@@ -62,6 +62,13 @@ public partial class DinRailTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial string SelectedStyle { get; set; } = nameof(LetraHelper.TextStyle.Normal);
 
+    /// <summary>Independently toggleable alongside <see cref="Italic"/> and <see cref="SelectedStyle"/> - see TextTabViewModel's Bold for the same combinable-formatting idea.</summary>
+    [ObservableProperty]
+    public partial bool Bold { get; set; }
+
+    [ObservableProperty]
+    public partial bool Italic { get; set; }
+
     [ObservableProperty]
     public partial string SelectedAlign { get; set; } = nameof(LetraHelper.TextAlign.Center);
 
@@ -113,6 +120,10 @@ public partial class DinRailTabViewModel : ViewModelBase
     partial void OnSelectedStyleChanged(string value) => RecomputeAllWarnings();
     partial void OnSelectedAlignChanged(string value) => RecomputeAllWarnings();
     partial void OnUpperCaseChanged(bool value) => RecomputeAllWarnings();
+    partial void OnBoldChanged(bool value) => RecomputeAllWarnings();
+    partial void OnItalicChanged(bool value) => RecomputeAllWarnings();
+
+    private LetraHelper.TextFormatting BuildFormatting() => new(Bold, Italic);
 
     private void RecomputeAllWarnings()
     {
@@ -127,13 +138,17 @@ public partial class DinRailTabViewModel : ViewModelBase
         var fontFamily = SelectedFontFamily ?? "Arial";
         var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
         var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        float scale = _render.DinRailRequiredScale(row.Text, fontFamily, style, UpperCase, align, row.Modules, true);
+        float scale = _render.DinRailRequiredScale(row.Text, fontFamily, style, UpperCase, align, row.Modules, true, BuildFormatting());
         row.IsTooSmallToReadWell = scale < LegibilityWarningThreshold;
     }
 
     /// <summary>Restores a previously printed DIN rail strip (see <see cref="Services.HistoryEntry.DinRailParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
-    public void LoadFrom(DinRailHistoryParams parameters)
+    public void LoadFrom(DinRailHistoryParams rawParameters)
     {
+        // Pre-1.4 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
+        // LetraHelper.TextStyle - map them onto the new independent Bold/Italic fields instead.
+        var parameters = rawParameters.WithLegacyStyleMigrated();
+
         Rows.Clear();
         foreach (var row in parameters.Rows)
         {
@@ -153,6 +168,8 @@ public partial class DinRailTabViewModel : ViewModelBase
         SelectedAlign = parameters.Align;
         SelectedSizing = Sizings.Contains(parameters.Sizing) ? parameters.Sizing : nameof(LetraHelper.DinRailSizing.Uniform);
         ShowSeparators = parameters.ShowSeparators;
+        Bold = parameters.Bold;
+        Italic = parameters.Italic;
 
         UpdateSizeNote();
         PreviewCommand.Execute(null);
@@ -243,13 +260,14 @@ public partial class DinRailTabViewModel : ViewModelBase
         var sizing = Enum.Parse<LetraHelper.DinRailSizing>(SelectedSizing);
         var upperCase = UpperCase;
         var showSeparators = ShowSeparators;
+        var formatting = BuildFormatting();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
+                var previewBytes = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, formatting);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -291,11 +309,12 @@ public partial class DinRailTabViewModel : ViewModelBase
         var sizing = Enum.Parse<LetraHelper.DinRailSizing>(SelectedSizing);
         var upperCase = UpperCase;
         var showSeparators = ShowSeparators;
+        var formatting = BuildFormatting();
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateDinRailRowJob(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true));
+            var job = await Task.Run(() => _letra.CreateDinRailRowJob(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, formatting));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -356,9 +375,9 @@ public partial class DinRailTabViewModel : ViewModelBase
 
     private void RecordHistory(List<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool printed)
     {
-        var thumbnail = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true);
+        var thumbnail = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, BuildFormatting());
         var rowParams = rows.Select(row => new DinRailRowParams(row.Text, row.Modules)).ToList();
-        var parameters = new DinRailHistoryParams(rowParams, fontFamily, SelectedStyle, upperCase, SelectedAlign, SelectedSizing, showSeparators);
+        var parameters = new DinRailHistoryParams(rowParams, fontFamily, SelectedStyle, upperCase, SelectedAlign, SelectedSizing, showSeparators, Bold, Italic);
         var summary = $"{rows.Count} label{(rows.Count == 1 ? "" : "s")}: " + string.Join(" | ", rows.Select(row => row.Text));
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.DinRail, summary, thumbnail, DinRailParams: parameters, Printed: printed));
     }
