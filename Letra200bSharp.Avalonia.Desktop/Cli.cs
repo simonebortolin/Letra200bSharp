@@ -1,6 +1,7 @@
 using CommandLine;
 using CommandLine.Text;
 using Letra200bSharp;
+using Letra200bSharp.Avalonia.Services;
 
 namespace Letra200bSharp.Avalonia.Desktop;
 
@@ -43,10 +44,10 @@ internal class TextOptions
     [Option("size", Default = LetraHelper.LabelTextSize.M, HelpText = "XS, S, M, L, or XL.")]
     public LetraHelper.LabelTextSize Size { get; set; }
 
-    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Bold, Italic, Outline, Shadow, or Vertical.")]
+    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Outline, Shadow, or Vertical.")]
     public LetraHelper.TextStyle Style { get; set; }
 
-    [Option("box", Default = LetraHelper.TextBoxStyle.None, HelpText = "None, Underline, Square, Pointed, Rounded, Edged, or Crocodile (ignored for size XL).")]
+    [Option("box", Default = LetraHelper.TextBoxStyle.None, HelpText = "None, Underline, Square, Pointed, Rounded, Edged, Crocodile, Heart, Star, Flower, or Ribbon (ignored for size XL).")]
     public LetraHelper.TextBoxStyle Box { get; set; }
 
     [Option("uppercase", HelpText = "Render the text in all uppercase.")]
@@ -54,6 +55,33 @@ internal class TextOptions
 
     [Option("width-scale", Default = 1f, HelpText = "Horizontal glyph stretch factor.")]
     public float WidthScale { get; set; }
+
+    [Option("bold", HelpText = "Bold weight - independent of --italic/--underline/--strikethrough, combines freely with any of them and with --style.")]
+    public bool Bold { get; set; }
+
+    [Option("italic", HelpText = "Italic slant - combines freely with --bold/--underline/--strikethrough and --style.")]
+    public bool Italic { get; set; }
+
+    [Option("underline", HelpText = "Underline each line of text.")]
+    public bool Underline { get; set; }
+
+    [Option("strikethrough", HelpText = "Strike through each line of text.")]
+    public bool Strikethrough { get; set; }
+
+    [Option("letter-spacing", Default = 0f, HelpText = "Extra gap after every glyph, as a fraction of the em size (0 = normal spacing) - independent of --width-scale, which stretches glyphs instead of spacing them apart.")]
+    public float LetterSpacing { get; set; }
+
+    [Option("frame-top", Default = 0, HelpText = "Extra margin (printer dots) above the --box frame.")]
+    public int FrameTop { get; set; }
+
+    [Option("frame-bottom", Default = 0, HelpText = "Extra margin (printer dots) below the --box frame.")]
+    public int FrameBottom { get; set; }
+
+    [Option("frame-left", Default = 0, HelpText = "Extra margin (printer dots) left of the --box frame.")]
+    public int FrameLeft { get; set; }
+
+    [Option("frame-right", Default = 0, HelpText = "Extra margin (printer dots) right of the --box frame.")]
+    public int FrameRight { get; set; }
 
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered text already accounts for the printer's unprintable top/bottom row.")]
     public bool NoCut { get; set; }
@@ -74,8 +102,40 @@ internal class BarcodeOptions
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered barcode already accounts for the printer's unprintable top/bottom row.")]
     public bool NoCut { get; set; }
 
-    [Option("show-number", HelpText = "Print the barcode's own data as a small caption below the bars (Arial Bold, the smallest legible size).")]
-    public bool ShowNumber { get; set; }
+    [Option("caption-position", Default = LetraHelper.CaptionPosition.None, HelpText = "None, Below, or Above - prints the barcode's own data as a small caption alongside the bars.")]
+    public LetraHelper.CaptionPosition CaptionPosition { get; set; }
+
+    [Option("caption-font", Default = "Arial", HelpText = "Font family for the caption (bold, ignored if caption-position is None).")]
+    public string CaptionFont { get; set; } = "Arial";
+
+    [Option("caption-size", Default = LetraHelper.CaptionSize.M, HelpText = "S, M, or L - how much of the printable height the caption takes up.")]
+    public LetraHelper.CaptionSize CaptionSize { get; set; }
+
+    [Option("caption-align", Default = LetraHelper.TextAlign.Center, HelpText = "Left, Center, or Right - alignment between the caption and the bars, whichever ends up narrower.")]
+    public LetraHelper.TextAlign CaptionAlign { get; set; }
+}
+
+[Verb("qr", HelpText = "Print a 2D matrix code (QR, Micro QR, rMQR, or Data Matrix).")]
+internal class QrOptions
+{
+    [Option("address", Required = true, HelpText = "Bluetooth address (or id) of the printer.")]
+    public required string Address { get; set; }
+
+    [Option("data", Required = true, HelpText = "Code content.")]
+    public required string Data { get; set; }
+
+    [Option("symbology", Default = LetraHelper.TwoDSymbology.Auto, HelpText = "Auto (least tape while staying scannable), QrCode, MicroQrCode, RectangularMicroQrCode, or DataMatrix. Note: on this printer a full QR is always near the practical scanning limit - prefer rMQR or Micro QR.")]
+    public LetraHelper.TwoDSymbology Symbology { get; set; }
+}
+
+[Verb("print-symbol", HelpText = "Print a symbol previously saved from the GUI's Draw tab symbol library.")]
+internal class PrintSymbolOptions
+{
+    [Option("address", Required = true, HelpText = "Bluetooth address (or id) of the printer.")]
+    public required string Address { get; set; }
+
+    [Option("name", Required = true, HelpText = "Name of the saved symbol (case-insensitive) - see the Draw tab's symbol library.")]
+    public required string Name { get; set; }
 }
 
 [Verb("din", HelpText = "Print a DIN rail label strip - one or more text segments, each sized to a number of 18mm DIN modules, printed as a single continuous label.")]
@@ -90,8 +150,14 @@ internal class DinOptions
     [Option("font", Default = "Arial", HelpText = "Font family name.")]
     public string Font { get; set; } = "Arial";
 
-    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Bold, Italic, Outline, or Shadow (Vertical isn't supported for DIN rail labels).")]
+    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Outline, or Shadow (Vertical isn't supported for DIN rail labels).")]
     public LetraHelper.TextStyle Style { get; set; }
+
+    [Option("bold", HelpText = "Bold weight - independent of --italic, combines freely with it and with --style.")]
+    public bool Bold { get; set; }
+
+    [Option("italic", HelpText = "Italic slant - combines freely with --bold and --style.")]
+    public bool Italic { get; set; }
 
     [Option("align", Default = LetraHelper.TextAlign.Center, HelpText = "Left, Center, or Right.")]
     public LetraHelper.TextAlign Align { get; set; }
@@ -110,12 +176,14 @@ internal class DinOptions
 }
 
 /// <summary>
-/// The headless counterpart of the Image/Text/Barcode/DIN Rail tabs in the Avalonia GUI - one
-/// verb per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old,
+/// The headless counterpart of the Image/Text/Barcode/2D Code/DIN Rail tabs in the Avalonia GUI -
+/// one verb per tab, exposing the same <see cref="LetraHelper"/> options. Replaces the old,
 /// image-only letra200bsharp.Console project.
 /// </summary>
 internal static class Cli
 {
+    private static readonly ILetraHelper LetraJob = new LetraHelper(new RenderHelper());
+
     /// <returns>
     /// The process exit code, or <c>null</c> if <paramref name="args"/> didn't start with one
     /// of our verbs at all (<see cref="BadVerbSelectedError"/>/<see cref="NoVerbSelectedError"/>)
@@ -135,7 +203,7 @@ internal static class Cli
             cfg.AutoHelp = true;
             cfg.AutoVersion = true;
         });
-        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, DinOptions>(args);
+        var parserResult = parser.ParseArguments<ListDevicesOptions, ImageOptions, TextOptions, BarcodeOptions, QrOptions, PrintSymbolOptions, DinOptions>(args);
 
         if (parserResult is NotParsed<object> notParsed)
         {
@@ -154,6 +222,8 @@ internal static class Cli
             (ImageOptions o) => RunImageAsync(o),
             (TextOptions o) => RunTextAsync(o),
             (BarcodeOptions o) => RunBarcodeAsync(o),
+            (QrOptions o) => RunQrAsync(o),
+            (PrintSymbolOptions o) => RunPrintSymbolAsync(o),
             (DinOptions o) => RunDinAsync(o),
             errs => Task.FromResult(1));
     }
@@ -187,7 +257,7 @@ internal static class Cli
         try
         {
             var imageBytes = await File.ReadAllBytesAsync(o.Path);
-            var job = LetraHelper.CreateJob(imageBytes, o.NoCut, o.PreRendered);
+            var job = LetraJob.CreateJob(imageBytes, o.NoCut, o.PreRendered);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -208,7 +278,9 @@ internal static class Cli
                 ? o.Line1 + Environment.NewLine + o.Line2
                 : o.Line1;
 
-            var job = LetraHelper.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut);
+            var formatting = new LetraHelper.TextFormatting(o.Bold, o.Italic, o.Underline, o.Strikethrough, o.LetterSpacing);
+            var frameSpacing = new LetraHelper.FrameSpacing(o.FrameTop, o.FrameBottom, o.FrameLeft, o.FrameRight);
+            var job = LetraJob.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut, formatting: formatting, frameSpacing: frameSpacing);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -222,7 +294,44 @@ internal static class Cli
     {
         try
         {
-            var job = LetraHelper.CreateJob(o.Data, o.Symbology, o.NoCut, o.ShowNumber);
+            var caption = new LetraHelper.CaptionOptions(o.CaptionPosition, o.CaptionFont, o.CaptionSize, o.CaptionAlign);
+            var job = LetraJob.CreateJob(o.Data, o.Symbology, o.NoCut, caption);
+            return await PrintAsync(o.Address, job);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunQrAsync(QrOptions o)
+    {
+        try
+        {
+            var job = LetraJob.CreateJob(o.Data, o.Symbology);
+            return await PrintAsync(o.Address, job);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunPrintSymbolAsync(PrintSymbolOptions o)
+    {
+        try
+        {
+            var library = new SymbolLibraryService();
+            var symbol = library.FindByName(o.Name);
+            if (symbol == null)
+            {
+                Console.WriteLine($"Error: no saved symbol named \"{o.Name}\".");
+                return 1;
+            }
+
+            var job = LetraJob.CreateJob(symbol.PixelPng, noCut: false, preRendered: true);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -249,7 +358,8 @@ internal static class Cli
                 rows.Add((label[..separatorIndex], modules));
             }
 
-            var job = LetraHelper.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut);
+            var formatting = new LetraHelper.TextFormatting(o.Bold, o.Italic);
+            var job = LetraJob.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut, formatting);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)

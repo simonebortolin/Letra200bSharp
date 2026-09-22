@@ -20,8 +20,29 @@
                     <TextBlock Text="{x:Static res:Strings.BarcodeTab_SymbologyLabel}" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <ComboBox ItemsSource="{Binding Symbologies}" SelectedItem="{Binding SelectedSymbology}" Width="120" />
                     <CheckBox Content="{x:Static res:Strings.Common_NoCut}" Margin="16,0,0,0" IsChecked="{Binding NoCut}" />
-                    <CheckBox Content="{x:Static res:Strings.BarcodeTab_ShowNumberCheckbox}" Margin="16,0,0,0" IsChecked="{Binding ShowNumber}" />
                 </StackPanel>
+
+                <!-- Optional caption alongside the bars: position (None/Below/Above) always
+                     available, the rest (font/size/align) only meaningful once a position is
+                     picked - see BarcodeTabViewModel.CaptionStyleEnabled. -->
+                <WrapPanel Margin="0,10,0,0">
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="150" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.BarcodeTab_CaptionPositionLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding CaptionPositions}" SelectedItem="{Binding SelectedCaptionPosition}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="190" Margin="0,0,16,10" IsEnabled="{Binding CaptionStyleEnabled}">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.BarcodeTab_CaptionFontLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding FontFamilies}" SelectedItem="{Binding SelectedCaptionFontFamily}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="130" Margin="0,0,16,10" IsEnabled="{Binding CaptionStyleEnabled}">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.BarcodeTab_CaptionSizeLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding CaptionSizes}" SelectedItem="{Binding SelectedCaptionSize}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="150" Margin="0,0,16,10" IsEnabled="{Binding CaptionStyleEnabled}">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.Common_AlignLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding CaptionAligns}" SelectedItem="{Binding SelectedCaptionAlign}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                </WrapPanel>
 
                 <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
@@ -38,6 +59,8 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,10,0,0">
             <Button Content="{x:Static res:Strings.Common_Preview}" Command="{Binding PreviewCommand}" />
+            <Button Content="{x:Static res:Strings.Common_Save}" Command="{Binding SaveCommand}" />
+            <Button Content="{x:Static res:Strings.Common_Concatenate}" Command="{Binding ConcatenateCommand}" ToolTip.Tip="{x:Static res:Strings.Common_ConcatenateTooltip}" />
             <Button Content="{x:Static res:Strings.Common_Print}" Command="{Binding PrintCommand}" IsEnabled="{Binding !IsBusy}" />
         </StackPanel>
     </Grid>

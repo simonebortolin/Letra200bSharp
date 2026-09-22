@@ -9,10 +9,18 @@ public enum HistoryKind
     Image,
     Text,
     Barcode,
-    DinRail
+    DinRail,
+    Qr2D,
+    Draw,
+    Compose
 }
 
-/// <summary>Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.</summary>
+/// <summary>
+/// Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4); <c>Style</c>
+/// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.4 - see
+/// <see cref="WithLegacyStyleMigrated"/> for how an old saved entry maps onto the new fields.
+/// </summary>
 public sealed record TextHistoryParams(
     string Line1,
     string? Line2,
@@ -22,15 +30,111 @@ public sealed record TextHistoryParams(
     decimal WidthScale,
     string BoxStyle,
     bool UpperCase,
-    string Align = "Left");
+    string Align = "Left",
+    bool Bold = false,
+    bool Italic = false,
+    bool Underline = false,
+    bool Strikethrough = false,
+    decimal LetterSpacing = 0m,
+    int FrameTop = 0,
+    int FrameBottom = 0,
+    int FrameLeft = 0,
+    int FrameRight = 0)
+{
+    /// <summary>A pre-1.4 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="LetraHelper.TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
+    public TextHistoryParams WithLegacyStyleMigrated() => Style switch
+    {
+        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        _ => this
+    };
 
-/// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
-public sealed record BarcodeHistoryParams(string Data, string Symbology, bool NoCut, bool ShowNumber = false);
+    [JsonIgnore]
+    public LetraHelper.TextFormatting Formatting => new(Bold, Italic, Underline, Strikethrough, (float)LetterSpacing);
+
+    [JsonIgnore]
+    public LetraHelper.FrameSpacing FrameSpacing => new(FrameTop, FrameBottom, FrameLeft, FrameRight);
+}
+
+/// <summary>
+/// Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.
+/// <c>ShowNumber</c> is a legacy (pre-1.4) flag, read only from existing history files and never
+/// written back; <see cref="WithLegacyCaptionMigrated"/> maps it to the caption it always rendered as.
+/// </summary>
+public sealed record BarcodeHistoryParams(
+    string Data,
+    string Symbology,
+    bool NoCut,
+    string CaptionPosition = "None",
+    string CaptionFontFamily = "Arial",
+    string CaptionSize = "M",
+    string CaptionAlign = "Center",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false)
+{
+    /// <summary>The old fixed "show number" caption was exactly Below / Arial / M / Center.</summary>
+    public BarcodeHistoryParams WithLegacyCaptionMigrated() =>
+        ShowNumber && CaptionPosition == nameof(LetraHelper.CaptionPosition.None)
+            ? this with { CaptionPosition = nameof(LetraHelper.CaptionPosition.Below), CaptionFontFamily = "Arial", CaptionSize = nameof(LetraHelper.CaptionSize.M), CaptionAlign = nameof(LetraHelper.TextAlign.Center), ShowNumber = false }
+            : this;
+
+    [JsonIgnore]
+    public LetraHelper.BarcodeSymbology ParsedSymbology => Enum.Parse<LetraHelper.BarcodeSymbology>(Symbology);
+
+    public LetraHelper.CaptionOptions ToCaption() => new(
+        Enum.Parse<LetraHelper.CaptionPosition>(CaptionPosition),
+        CaptionFontFamily,
+        Enum.Parse<LetraHelper.CaptionSize>(CaptionSize),
+        Enum.Parse<LetraHelper.TextAlign>(CaptionAlign));
+}
+
+/// <summary>
+/// Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.
+/// <c>Symbology</c> is the tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.
+/// </summary>
+public sealed record QrHistoryParams(string Data, string Symbology)
+{
+    /// <summary>2D Code tab ComboBox label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
+    public static readonly IReadOnlyList<(string Label, LetraHelper.TwoDSymbology Value)> SymbologyChoices = new[]
+    {
+        ("Auto", LetraHelper.TwoDSymbology.Auto),
+        ("QR", LetraHelper.TwoDSymbology.QrCode),
+        ("Micro QR", LetraHelper.TwoDSymbology.MicroQrCode),
+        ("rMQR (rectangular)", LetraHelper.TwoDSymbology.RectangularMicroQrCode),
+        ("Data Matrix", LetraHelper.TwoDSymbology.DataMatrix),
+    };
+
+    public static LetraHelper.TwoDSymbology ParseSymbology(string label) =>
+        SymbologyChoices.FirstOrDefault(c => c.Label == label, SymbologyChoices[0]).Value;
+
+    [JsonIgnore]
+    public LetraHelper.TwoDSymbology ParsedSymbology => ParseSymbology(Symbology);
+}
+
+/// <summary>
+/// A Draw tab canvas, kept pixel-exact so it can be reprinted (or reopened for further editing)
+/// - see <see cref="ViewModels.DrawTabViewModel.LoadFrom"/>. Unlike an Image tab job, the source
+/// is always a small, already print-sized monochrome drawing rather than an arbitrary photo, so
+/// keeping the full bytes around is cheap.
+/// </summary>
+public sealed record DrawHistoryParams(byte[] Png, int WidthDots);
+
+/// <summary>
+/// An Image tab element of a Compose tab strip (see <see cref="ComposeElement"/>/<see cref="ComposeElementParams"/>),
+/// kept as its already thresholded and print-sized content PNG (see
+/// <see cref="IRenderHelper.RenderImageContentImage"/>), never the source photo. That keeps
+/// composition.json and history.json small no matter how large the original image was, and
+/// avoids re-thresholding the photo on every preview.
+/// </summary>
+public sealed record ImageHistoryParams(byte[] ContentPng);
 
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);
 
-/// <summary>Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.</summary>
+/// <summary>
+/// Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4) - see
+/// <see cref="WithLegacyStyleMigrated"/>, same migration <see cref="TextHistoryParams"/> needs.
+/// </summary>
 public sealed record DinRailHistoryParams(
     IReadOnlyList<DinRailRowParams> Rows,
     string? FontFamily,
@@ -38,15 +142,53 @@ public sealed record DinRailHistoryParams(
     bool UpperCase,
     string Align,
     string Sizing,
-    bool ShowSeparators);
+    bool ShowSeparators,
+    bool Bold = false,
+    bool Italic = false)
+{
+    public DinRailHistoryParams WithLegacyStyleMigrated() => Style switch
+    {
+        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        _ => this
+    };
+
+    [JsonIgnore]
+    public LetraHelper.TextFormatting Formatting => new(Bold, Italic);
+}
 
 /// <summary>
-/// One past print job. <see cref="ThumbnailPng"/> is the same PNG bytes <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/>
-/// already produces for the tab's live preview, so it stays tiny. Only Text, Barcode and DIN
-/// Rail jobs carry enough state to be reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="DinRailParams"/>) -
+/// One element of a composed label kept in history - the same per-tab shape as
+/// <see cref="ComposeElement"/> (see the Compose tab's staging list), minus the id and
+/// thumbnail that only matter while it's still being staged.
+/// </summary>
+public sealed record ComposeElementParams(
+    string Kind,
+    string Summary,
+    TextHistoryParams? TextParams = null,
+    BarcodeHistoryParams? BarcodeParams = null,
+    QrHistoryParams? QrParams = null,
+    DrawHistoryParams? DrawParams = null,
+    ImageHistoryParams? ImageParams = null);
+
+/// <summary>Enough of a Compose tab's state to restore it and let the user reprint - see <see cref="ViewModels.ComposeTabViewModel.LoadFrom"/>.</summary>
+public sealed record ComposeHistoryParams(IReadOnlyList<ComposeElementParams> Elements);
+
+/// <summary>
+/// One past print job - or, since <see cref="Printed"/> was added, one deliberately saved design
+/// that was never (yet) sent to a printer, for a user who wants to build up a library of labels
+/// without a Dymo in reach. <see cref="ThumbnailPng"/> is the same PNG bytes
+/// <see cref="IRenderHelper.PreviewImage(byte[], bool, bool)"/> already produces for
+/// the tab's live preview, so it stays tiny. Every job except Image carries enough state to be
+/// reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>/<see cref="DrawParams"/>/<see cref="ComposeParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large
 /// photo), so it shows up in history for reference only.
 /// </summary>
+/// <param name="Printed">
+/// <c>true</c> if this entry came from an actual successful print; <c>false</c> if the user
+/// explicitly saved the design without printing it (see each tab's <c>Save</c> command). Defaults
+/// to <c>true</c> so entries persisted before this field existed still deserialize as prints.
+/// </param>
 public sealed record HistoryEntry(
     Guid Id,
     DateTimeOffset Timestamp,
@@ -55,10 +197,14 @@ public sealed record HistoryEntry(
     byte[] ThumbnailPng,
     TextHistoryParams? TextParams = null,
     BarcodeHistoryParams? BarcodeParams = null,
-    DinRailHistoryParams? DinRailParams = null)
+    DinRailHistoryParams? DinRailParams = null,
+    QrHistoryParams? QrParams = null,
+    bool Printed = true,
+    DrawHistoryParams? DrawParams = null,
+    ComposeHistoryParams? ComposeParams = null)
 {
     [JsonIgnore]
-    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null;
+    public bool CanReprint => TextParams != null || BarcodeParams != null || DinRailParams != null || QrParams != null || DrawParams != null || ComposeParams != null;
 }
 
 /// <summary>
