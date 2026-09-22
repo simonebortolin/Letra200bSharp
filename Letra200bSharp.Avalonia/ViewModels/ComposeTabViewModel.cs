@@ -259,7 +259,7 @@ public partial class ComposeTabViewModel : ViewModelBase
         }
     }
 
-    /// <param name="elementPngs">The already-rendered content of <paramref name="elements"/>, reused so a print doesn't render everything twice.</param>
+    /// <summary>Takes the already-rendered element content so a print doesn't render everything twice.</summary>
     private void RecordHistory(IReadOnlyList<ComposeElement> elements, IReadOnlyList<byte[]> elementPngs, bool printed)
     {
         var thumbnail = _render.PreviewComposedImage(elementPngs);

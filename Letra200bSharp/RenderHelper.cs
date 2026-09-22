@@ -1613,8 +1613,8 @@ namespace Letra200bSharp
         /// portrait packing order (head axis on <c>Width</c>) rather than the landscape shape
         /// every Content method returns - the same portrait-to-landscape rotation
         /// <see cref="PreviewImage(byte[], bool, bool)"/> already does is applied here to match.
-        /// With <paramref name="noCut"/> <c>false</c> (what <see cref="ViewModels.ComposeTabViewModel"/>
-        /// passes), this naturally comes out the full 32-dot head axis, already padded - see
+        /// With <paramref name="noCut"/> <c>false</c> (what the Avalonia app's Compose
+        /// tab passes), this naturally comes out the full 32-dot head axis, already padded - see
         /// <see cref="ComposeElementImages"/> for how that's reconciled with every other Content
         /// method's bare 30-tall output when composing a strip.
         /// </summary>

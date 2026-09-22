@@ -21,7 +21,7 @@ public sealed partial class DinRailRow : ObservableObject
 
     /// <summary>
     /// Set by <see cref="DinRailTabViewModel"/> when this row's text would need heavy shrinking
-    /// to fit its module count (see <see cref="LetraHelper.DinRailRequiredScale"/>) - a hint that
+    /// to fit its module count (see <see cref="IRenderHelper.DinRailRequiredScale"/>) - a hint that
     /// the printed text will likely be too small to read, so the user knows to either shorten it
     /// or add more modules instead of only discovering it after printing.
     /// </summary>
@@ -90,7 +90,7 @@ public partial class DinRailTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial string TotalModulesText { get; set; } = "";
 
-    /// <summary>Below this required scale (see <see cref="LetraHelper.DinRailRequiredScale"/>), a row is flagged as likely too small to read once printed.</summary>
+    /// <summary>Below this required scale (see <see cref="IRenderHelper.DinRailRequiredScale"/>), a row is flagged as likely too small to read once printed.</summary>
     private const float LegibilityWarningThreshold = 0.3f;
 
     public DinRailTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)

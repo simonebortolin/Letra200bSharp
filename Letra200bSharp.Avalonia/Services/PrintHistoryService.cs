@@ -27,12 +27,11 @@ public sealed record TextHistoryParams(
     bool UpperCase,
     string Align = "Left");
 
-/// <summary>Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.</summary>
-/// <param name="ShowNumber">
-/// Legacy (pre-1.4) flag, read only from existing history files and never written back. It
-/// predates the configurable caption, and <see cref="WithLegacyCaptionMigrated"/> maps it to the
-/// caption it always rendered as.
-/// </param>
+/// <summary>
+/// Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.
+/// <c>ShowNumber</c> is a legacy (pre-1.4) flag, read only from existing history files and never
+/// written back; <see cref="WithLegacyCaptionMigrated"/> maps it to the caption it always rendered as.
+/// </summary>
 public sealed record BarcodeHistoryParams(
     string Data,
     string Symbology,
@@ -59,8 +58,10 @@ public sealed record BarcodeHistoryParams(
         Enum.Parse<LetraHelper.TextAlign>(CaptionAlign));
 }
 
-/// <summary>Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.</summary>
-/// <param name="Symbology">The 2D Code tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.</param>
+/// <summary>
+/// Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.
+/// <c>Symbology</c> is the tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.
+/// </summary>
 public sealed record QrHistoryParams(string Data, string Symbology)
 {
     /// <summary>2D Code tab ComboBox label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
@@ -131,7 +132,7 @@ public sealed record ComposeHistoryParams(IReadOnlyList<ComposeElementParams> El
 /// One past print job - or, since <see cref="Printed"/> was added, one deliberately saved design
 /// that was never (yet) sent to a printer, for a user who wants to build up a library of labels
 /// without a Dymo in reach. <see cref="ThumbnailPng"/> is the same PNG bytes
-/// <see cref="Letra200bSharp.LetraHelper.PreviewImage(byte[], bool, bool)"/> already produces for
+/// <see cref="IRenderHelper.PreviewImage(byte[], bool, bool)"/> already produces for
 /// the tab's live preview, so it stays tiny. Every job except Image carries enough state to be
 /// reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>/<see cref="DrawParams"/>/<see cref="ComposeParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large
