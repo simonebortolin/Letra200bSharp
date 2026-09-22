@@ -1,0 +1,55 @@
+name: PR Pre-release Cleanup
+
+# Deletes the rolling pr-<N> pre-release (and its tag) that ci.yml publishes for a pull request,
+# once that PR is merged or closed.
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete PR pre-release
+    runs-on: ubuntu-latest
+    # Fork PRs never get a pre-release (see ci.yml), and their token is read-only anyway.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: prerelease-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Delete pre-release and tag
+        run: |
+          TAG="pr-${PR_NUMBER}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --cleanup-tag --yes
+            echo "Deleted pre-release $TAG"
+          else
+            echo "No pre-release $TAG to delete"
+          fi
+          # A tag can outlive its release (e.g. a release deleted by hand) - remove it too.
+          gh api -X DELETE "repos/${GH_REPO}/git/refs/tags/${TAG}" >/dev/null 2>&1 || true
+
+      - name: Update the pull request comment
+        run: |
+          MARKER='<!-- letra200bsharp-prerelease -->'
+          COMMENT_ID=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X PATCH "repos/${GH_REPO}/issues/comments/${COMMENT_ID}" \
+              -f body="${MARKER}
+          ~~Pre-release~~ removed now that this PR is closed." >/dev/null
+          fi

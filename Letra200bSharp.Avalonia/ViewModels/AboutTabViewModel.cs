@@ -24,9 +24,8 @@ public partial class AboutTabViewModel : ViewModelBase
     public string AppTagline => Strings.AboutTab_Tagline;
 
     /// <summary>
-    /// The assembly's version, or "dev" if it was built without one (e.g. a local build with
-    /// no version stamped into the csproj/CI pipeline) - there's no reliable version to show
-    /// either way, so this just avoids printing a misleading "0.0.0.0".
+    /// The build's full version including any pre-release suffix (e.g. "1.4.0-pr.12.34" for a
+    /// pull request pre-release), or "dev" if it was built without one.
     /// </summary>
     public string AppVersion { get; } = FormatVersion();
 
@@ -79,8 +78,10 @@ public partial class AboutTabViewModel : ViewModelBase
 
     private static string FormatVersion()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        return version == null ? "dev" : $"{version.Major}.{version.Minor}.{version.Build}";
+        // AssemblyVersion is numeric-only, so a pre-release would look identical to its release;
+        // the informational version keeps the suffix. The SDK appends "+<commit>" to it - drop that.
+        var informational = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return string.IsNullOrEmpty(informational) ? "dev" : informational.Split('+')[0];
     }
 
     [RelayCommand]
