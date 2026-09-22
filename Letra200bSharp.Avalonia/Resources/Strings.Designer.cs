@@ -995,7 +995,61 @@ namespace Letra200bSharp.Avalonia.Resources {
                 return ResourceManager.GetString("TextTab_UppercaseCheckbox", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to Bold.
+        /// </summary>
+        public static string TextTab_BoldCheckbox {
+            get {
+                return ResourceManager.GetString("TextTab_BoldCheckbox", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Italic.
+        /// </summary>
+        public static string TextTab_ItalicCheckbox {
+            get {
+                return ResourceManager.GetString("TextTab_ItalicCheckbox", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Underline.
+        /// </summary>
+        public static string TextTab_UnderlineCheckbox {
+            get {
+                return ResourceManager.GetString("TextTab_UnderlineCheckbox", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Strikethrough.
+        /// </summary>
+        public static string TextTab_StrikethroughCheckbox {
+            get {
+                return ResourceManager.GetString("TextTab_StrikethroughCheckbox", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Letter spacing:.
+        /// </summary>
+        public static string TextTab_LetterSpacingLabel {
+            get {
+                return ResourceManager.GetString("TextTab_LetterSpacingLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Frame margin (T/B/L/R):.
+        /// </summary>
+        public static string TextTab_FrameSpacingLabel {
+            get {
+                return ResourceManager.GetString("TextTab_FrameSpacingLabel", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to Width:.
         /// </summary>

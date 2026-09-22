@@ -212,10 +212,12 @@ namespace Letra200bSharp
         /// <param name="boxStyle">Decorative border/underline framing the text, matching a subset of the real Dymo app's options.</param>
         /// <param name="align">Horizontal alignment of shorter lines relative to the widest one (only visible when lines differ in length).</param>
         /// <param name="noCut">See <see cref="RenderHelper.PrepareBitmap"/>.</param>
+        /// <param name="formatting">Independently combinable Bold/Italic/Underline/Strikethrough/letter-spacing - see <see cref="TextFormatting"/>.</param>
+        /// <param name="frameSpacing">Per-side extra margin around the frame drawn by <paramref name="boxStyle"/> - see <see cref="FrameSpacing"/>.</param>
         /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
-        public List<byte[]> CreateJob(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, TextAlign align = TextAlign.Left, bool noCut = false)
+        public List<byte[]> CreateJob(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, TextAlign align = TextAlign.Left, bool noCut = false, TextFormatting formatting = default, FrameSpacing frameSpacing = default)
         {
-            byte[] imageBytes = _render.RenderTextContentImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut);
+            byte[] imageBytes = _render.RenderTextContentImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut, formatting, frameSpacing);
             return CreateJob(imageBytes, noCut, preRendered: true);
         }
 
@@ -250,9 +252,9 @@ namespace Letra200bSharp
         /// <see cref="CreateJob(byte[], bool, bool)"/> pipeline via <c>preRendered</c>.
         /// </summary>
         /// <returns>List of byte arrays containing the data to be sent to the Dymo Letra 200b</returns>
-        public List<byte[]> CreateDinRailRowJob(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut = false)
+        public List<byte[]> CreateDinRailRowJob(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut = false, TextFormatting formatting = default)
         {
-            byte[] imageBytes = _render.RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut);
+            byte[] imageBytes = _render.RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut, formatting);
             return CreateJob(imageBytes, noCut, preRendered: true);
         }
 
@@ -300,22 +302,35 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Font weight/effect options offered by the real Dymo LetraTag app.
+        /// Layout/paint effect applied to the whole text block - mutually exclusive with each
+        /// other (unlike <see cref="TextFormatting"/>'s Bold/Italic/Underline/Strikethrough,
+        /// which combine freely with these and with each other).
         /// </summary>
         public enum TextStyle
         {
             Normal,
-            Bold,
-            Italic,
             Outline,
             Shadow,
             Vertical
         }
 
         /// <summary>
+        /// Independently toggleable text decorations - unlike <see cref="TextStyle"/>, any
+        /// combination is valid (e.g. Bold + Italic + Underline together), matching the
+        /// combinable B/I/U/S toolbar of apps like LabelBits rather than a single style pick.
+        /// </summary>
+        /// <param name="LetterSpacing">
+        /// Extra gap inserted after every glyph, as a fraction of the font's em size (0 = normal
+        /// spacing, same units/scale as <c>widthScale</c> but additive rather than a stretch) -
+        /// independent of <c>widthScale</c>, which stretches each glyph instead of spacing them
+        /// apart.
+        /// </param>
+        public readonly record struct TextFormatting(bool Bold = false, bool Italic = false, bool Underline = false, bool Strikethrough = false, float LetterSpacing = 0f);
+
+        /// <summary>
         /// Decorative border/underline framing the text, matching the geometric subset of the
-        /// real Dymo app's "box and underline styles" (the illustrated ones - Train, Sweet
-        /// Hearts, Flowers - aren't included).
+        /// real Dymo app's "box and underline styles" plus a few illustrated shapes
+        /// (Heart/Star/Flower/Ribbon) inspired by similar third-party apps.
         /// </summary>
         public enum TextBoxStyle
         {
@@ -325,8 +340,20 @@ namespace Letra200bSharp
             Pointed,
             Rounded,
             Edged,
-            Crocodile
+            Crocodile,
+            Heart,
+            Star,
+            Flower,
+            Ribbon
         }
+
+        /// <summary>
+        /// Extra margin (in final printer dots, on top of whatever margin the frame style
+        /// already reserves) between the text and each side of the frame drawn by
+        /// <paramref name="TextBoxStyle"/> - lets the frame be pulled in/out per side instead of
+        /// always sitting at the style's own fixed margin.
+        /// </summary>
+        public readonly record struct FrameSpacing(int Top = 0, int Bottom = 0, int Left = 0, int Right = 0);
 
         /// <summary>
         /// How much of the fixed printable height the rendered text glyphs fill (and, since

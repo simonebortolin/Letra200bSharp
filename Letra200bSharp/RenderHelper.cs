@@ -428,7 +428,7 @@ namespace Letra200bSharp
         /// already carve out their own small gap - see <see cref="DinRailSeparatorWidthPx"/>). A
         /// blank/whitespace-only row (used as a spacer) renders as a minimal blank image.
         /// </summary>
-        private byte[] RenderDinRailSegmentNatural(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, int wrapTargetWidthPx, bool noCut)
+        private byte[] RenderDinRailSegmentNatural(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, int wrapTargetWidthPx, bool noCut, LetraHelper.TextFormatting formatting = default)
         {
             int targetHeight = noCut ? 32 : 30;
 
@@ -449,7 +449,7 @@ namespace Letra200bSharp
                 }
             }
 
-            byte[] oneLineImage = RenderTextContentImage(text, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut);
+            byte[] oneLineImage = RenderTextContentImage(text, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut, formatting);
             if (!text.Contains(' '))
             {
                 return oneLineImage;
@@ -474,7 +474,7 @@ namespace Letra200bSharp
                 }
 
                 string candidate = text.Substring(0, i) + "\n" + text.Substring(i + 1);
-                byte[] candidateImage = RenderTextContentImage(candidate, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut);
+                byte[] candidateImage = RenderTextContentImage(candidate, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut, formatting);
                 int candidateWidth = DecodeWidth(candidateImage);
                 if (candidateWidth < bestWidth)
                 {
@@ -495,7 +495,7 @@ namespace Letra200bSharp
         /// rendering pipeline, so it ignores the couple of pixels a separator line would carve
         /// out of the segment.
         /// </summary>
-        public float DinRailRequiredScale(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, decimal modules, bool noCut = false)
+        public float DinRailRequiredScale(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, decimal modules, bool noCut = false, LetraHelper.TextFormatting formatting = default)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -503,7 +503,7 @@ namespace Letra200bSharp
             }
 
             int targetWidthPx = DinRailWidthPixels(modules);
-            byte[] naturalImage = RenderDinRailSegmentNatural(text, fontFamily, style, upperCase, align, targetWidthPx, noCut);
+            byte[] naturalImage = RenderDinRailSegmentNatural(text, fontFamily, style, upperCase, align, targetWidthPx, noCut, formatting);
             int naturalWidth = DecodeWidth(naturalImage);
             return naturalWidth <= targetWidthPx ? 1f : targetWidthPx / (float)naturalWidth;
         }
@@ -525,7 +525,7 @@ namespace Letra200bSharp
         /// still sum to the requested total physical length. Public (rather than kept private) so
         /// <see cref="ILetraHelper.CreateDinRailRowJob"/> can build a job from it.
         /// </summary>
-        public byte[] RenderDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut)
+        public byte[] RenderDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut, LetraHelper.TextFormatting formatting = default)
         {
             int targetHeight = noCut ? 32 : 30;
             float alignFactor = AlignFactor(align);
@@ -541,7 +541,7 @@ namespace Letra200bSharp
                 bool drawSeparatorAfter = showSeparators && i < rows.Count - 1;
                 int textWidthPx = Math.Max(1, segmentWidths[i] - (drawSeparatorAfter ? DinRailSeparatorWidthPx : 0));
 
-                naturalImages[i] = RenderDinRailSegmentNatural(rows[i].Text, fontFamily, style, upperCase, align, textWidthPx, noCut);
+                naturalImages[i] = RenderDinRailSegmentNatural(rows[i].Text, fontFamily, style, upperCase, align, textWidthPx, noCut, formatting);
                 naturalWidths[i] = DecodeWidth(naturalImages[i]);
                 requiredScales[i] = string.IsNullOrWhiteSpace(rows[i].Text) || naturalWidths[i] <= textWidthPx
                     ? 1f
@@ -623,9 +623,9 @@ namespace Letra200bSharp
         /// print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered label</returns>
-        public byte[] PreviewDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut = false)
+        public byte[] PreviewDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut = false, LetraHelper.TextFormatting formatting = default)
         {
-            byte[] imageBytes = RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut);
+            byte[] imageBytes = RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut, formatting);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
 
@@ -668,7 +668,7 @@ namespace Letra200bSharp
         /// content" renderer for a Text-tab-style Compose element (see <see cref="ComposeElementImages"/>).
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered label</returns>
-        public byte[] RenderTextContentImage(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool noCut)
+        public byte[] RenderTextContentImage(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool noCut, LetraHelper.TextFormatting formatting = default, LetraHelper.FrameSpacing frameSpacing = default)
         {
             if (upperCase)
             {
@@ -685,12 +685,17 @@ namespace Letra200bSharp
 
             const float renderFontSize = 96;
             int targetHeight = noCut ? 32 : 30;
-            var fontStyle = style switch
-            {
-                LetraHelper.TextStyle.Bold => SKFontStyle.Bold,
-                LetraHelper.TextStyle.Italic => SKFontStyle.Italic,
-                _ => SKFontStyle.Normal
-            };
+            // Bold/Italic are independently toggleable (see LetraHelper.TextFormatting) and
+            // combine freely with each other and with style's Outline/Shadow/Vertical - SkiaSharp
+            // already supports a BoldItalic weight/slant combination directly.
+            var fontStyle = new SKFontStyle(
+                formatting.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+                SKFontStyleWidth.Normal,
+                formatting.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+            // Extra gap after every glyph, in the same pre-scale units as everything else here
+            // (a fraction of renderFontSize, the em size) - 0 reproduces the exact pre-existing
+            // single-DrawText-call layout below.
+            float letterSpacingPx = formatting.LetterSpacing * renderFontSize;
             float paddingRatio = GetPaddingRatio(size);
 
             using (var typeface = SKTypeface.FromFamilyName(fontFamily, fontStyle))
@@ -701,6 +706,9 @@ namespace Letra200bSharp
             // (see PrepareBitmap) - producing noisy, near-random pixels instead of clean
             // glyph shapes. Rendering with hard edges from the start keeps it legible.
             using (var paint = new SKPaint { Color = SKColors.Black, IsAntialias = false })
+            // Underline/strikethrough are drawn as solid rects regardless of paint.Style (which
+            // Outline flips to Stroke-only) - a dedicated always-Fill paint keeps them solid.
+            using (var linePaint = new SKPaint { Color = SKColors.Black, IsAntialias = false, Style = SKPaintStyle.Fill })
             {
                 if (style == LetraHelper.TextStyle.Outline)
                 {
@@ -713,7 +721,52 @@ namespace Letra200bSharp
                 font.GetFontMetrics(out SKFontMetrics metrics);
                 float ascent = -metrics.Ascent;
                 float lineHeight = ascent + metrics.Descent;
-                float[] lineWidths = lines.Select(line => font.MeasureText(line, paint)).ToArray();
+
+                // Splits a line into its individual text elements (grapheme clusters) so
+                // per-glyph spacing doesn't split a surrogate pair/combining mark apart.
+                static IReadOnlyList<string> TextElements(string line)
+                {
+                    var elements = new List<string>();
+                    var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(line);
+                    while (enumerator.MoveNext())
+                    {
+                        elements.Add((string)enumerator.Current);
+                    }
+                    return elements;
+                }
+
+                float MeasureLine(string line)
+                {
+                    if (letterSpacingPx == 0f)
+                    {
+                        return font.MeasureText(line, paint);
+                    }
+
+                    var elements = TextElements(line);
+                    float width = elements.Sum(e => font.MeasureText(e, paint));
+                    return width + Math.Max(0, elements.Count - 1) * letterSpacingPx;
+                }
+
+                // Draws one line glyph-by-glyph when letter spacing is in play (so the extra gap
+                // can be inserted between each pair), or as a single DrawText call otherwise -
+                // letterSpacingPx == 0 reproduces the exact pre-existing layout/pixels.
+                void DrawLine(SKCanvas canvas, string line, float x, float y)
+                {
+                    if (letterSpacingPx == 0f)
+                    {
+                        canvas.DrawText(line, x, y, SKTextAlign.Left, font, paint);
+                        return;
+                    }
+
+                    float cx = x;
+                    foreach (var element in TextElements(line))
+                    {
+                        canvas.DrawText(element, cx, y, SKTextAlign.Left, font, paint);
+                        cx += font.MeasureText(element, paint) + letterSpacingPx;
+                    }
+                }
+
+                float[] lineWidths = lines.Select(MeasureLine).ToArray();
                 float maxLineWidth = lineWidths.Max();
 
                 // How far a line's own left edge sits from the widest line's left edge, as a
@@ -767,6 +820,16 @@ namespace Letra200bSharp
                 // actually use, so measuring padding against them left visible slack even at
                 // paddingRatio 0 (e.g. XL). Measure the real ink extent of the rendered lines
                 // instead, and base the padding (and the "no padding at all" case) on that.
+                // Underline/strikethrough offsets from the baseline, from the font's own metrics
+                // when it reports them, else a fallback proportional to the ascent (the final
+                // render gets downscaled to a handful of pixels anyway, so an approximate
+                // position is enough - same spirit as the Shadow effect's fixed 8%-of-em offset
+                // above).
+                float underlineOffset = metrics.UnderlinePosition ?? ascent * 0.15f;
+                float underlineThickness = Math.Max(Math.Abs(metrics.UnderlineThickness ?? renderFontSize * 0.06f), 1f);
+                float strikeoutOffset = metrics.StrikeoutPosition ?? -ascent * 0.4f;
+                float strikeoutThickness = Math.Max(Math.Abs(metrics.StrikeoutThickness ?? renderFontSize * 0.06f), 1f);
+
                 float unpaddedContentTop = float.MaxValue;
                 float unpaddedContentBottom = float.MinValue;
                 for (int i = 0; i < lines.Length; i++)
@@ -775,7 +838,15 @@ namespace Letra200bSharp
                     font.MeasureText(lines[i], out SKRect inkBounds, paint);
                     unpaddedContentTop = Math.Min(unpaddedContentTop, lineBaseline + inkBounds.Top);
                     unpaddedContentBottom = Math.Max(unpaddedContentBottom, lineBaseline + inkBounds.Bottom);
+                    // Extends the ink-extent bounds by the underline's reach so an all-caps/
+                    // no-descender line's underline doesn't get clipped by a crop that would
+                    // otherwise assume there's nothing below the glyphs themselves.
+                    if (formatting.Underline)
+                    {
+                        unpaddedContentBottom = Math.Max(unpaddedContentBottom, lineBaseline + underlineOffset + underlineThickness / 2f);
+                    }
                 }
+
                 float contentHeight = Math.Max(unpaddedContentBottom - unpaddedContentTop, 1f);
 
                 float verticalShift;
@@ -815,9 +886,18 @@ namespace Letra200bSharp
                                 // Simulate a drop shadow on a 1-bit printer by drawing a
                                 // second, offset copy behind the main glyphs - the overlap
                                 // reads as a solid "echo" trailing each letter.
-                                canvas.DrawText(lines[i], x + shadowOffset, y + shadowOffset, SKTextAlign.Left, font, paint);
+                                DrawLine(canvas, lines[i], x + shadowOffset, y + shadowOffset);
                             }
-                            canvas.DrawText(lines[i], x, y, SKTextAlign.Left, font, paint);
+                            DrawLine(canvas, lines[i], x, y);
+
+                            if (formatting.Underline)
+                            {
+                                canvas.DrawRect(new SKRect(x, y + underlineOffset - underlineThickness / 2f, x + lineWidths[i], y + underlineOffset + underlineThickness / 2f), linePaint);
+                            }
+                            if (formatting.Strikethrough)
+                            {
+                                canvas.DrawRect(new SKRect(x, y + strikeoutOffset - strikeoutThickness / 2f, x + lineWidths[i], y + strikeoutOffset + strikeoutThickness / 2f), linePaint);
+                            }
                         }
 
                         if (boxStyle != LetraHelper.TextBoxStyle.None)
@@ -830,7 +910,19 @@ namespace Letra200bSharp
                             // the edge of the 30 printable rows instead of visibly inside
                             // them. ~1.5px of margin once scaled down to targetHeight.
                             float verticalMargin = bitmap.Height / (float)targetHeight * 1.5f;
-                            DrawTextBox(canvas, boxStyle, bitmap.Width, bitmap.Height, borderStrokeWidth, verticalMargin);
+                            // frameSpacing is authored in final printer dots - convert to this
+                            // raw canvas's pre-scale units the same way verticalMargin already
+                            // does (bitmap.Height / targetHeight is the pre-scale-per-final-dot
+                            // factor; horizontal uses the *2 head/feed-axis correction the final
+                            // resize below applies).
+                            float perDotY = bitmap.Height / (float)targetHeight;
+                            float perDotX = perDotY * 2f;
+                            var scaledFrameSpacing = new LetraHelper.FrameSpacing(
+                                (int)MathF.Round(frameSpacing.Top * perDotY),
+                                (int)MathF.Round(frameSpacing.Bottom * perDotY),
+                                (int)MathF.Round(frameSpacing.Left * perDotX),
+                                (int)MathF.Round(frameSpacing.Right * perDotX));
+                            DrawTextBox(canvas, boxStyle, bitmap.Width, bitmap.Height, borderStrokeWidth, verticalMargin, scaledFrameSpacing);
                         }
                     }
 
@@ -876,12 +968,23 @@ namespace Letra200bSharp
         }
 
         /// <summary>Draws a decorative border/underline around the full rendered text canvas.</summary>
-        private void DrawTextBox(SKCanvas canvas, LetraHelper.TextBoxStyle boxStyle, float width, float height, float strokeWidth, float verticalMargin)
+        private void DrawTextBox(SKCanvas canvas, LetraHelper.TextBoxStyle boxStyle, float width, float height, float strokeWidth, float verticalMargin, LetraHelper.FrameSpacing frameSpacing = default)
         {
             using (var borderPaint = new SKPaint { Color = SKColors.Black, IsAntialias = false, Style = SKPaintStyle.Stroke, StrokeWidth = strokeWidth })
             {
                 float inset = strokeWidth / 2f;
-                var rect = new SKRect(inset, inset + verticalMargin, width - inset, height - inset - verticalMargin);
+                var rect = new SKRect(
+                    inset + frameSpacing.Left,
+                    inset + verticalMargin + frameSpacing.Top,
+                    width - inset - frameSpacing.Right,
+                    height - inset - verticalMargin - frameSpacing.Bottom);
+                // A user-driven frameSpacing can, in principle, invert the rect (e.g. asking for
+                // more margin than the canvas has room for) - clamp rather than let SkiaSharp draw
+                // an inverted/degenerate path.
+                if (rect.Width < 1 || rect.Height < 1)
+                {
+                    rect = new SKRect(inset, inset + verticalMargin, width - inset, height - inset - verticalMargin);
+                }
 
                 switch (boxStyle)
                 {
@@ -903,6 +1006,18 @@ namespace Letra200bSharp
                         break;
                     case LetraHelper.TextBoxStyle.Crocodile:
                         DrawZigzagBox(canvas, borderPaint, rect, toothSpan: rect.Height, amplitude: rect.Height * 0.3f);
+                        break;
+                    case LetraHelper.TextBoxStyle.Heart:
+                        DrawHeartBox(canvas, borderPaint, rect);
+                        break;
+                    case LetraHelper.TextBoxStyle.Star:
+                        DrawPerimeterSpikeBox(canvas, borderPaint, rect, spikeSpan: Math.Max(rect.Height * 0.6f, 1f), amplitude: Math.Min(rect.Width, rect.Height) * 0.14f);
+                        break;
+                    case LetraHelper.TextBoxStyle.Flower:
+                        DrawPerimeterSpikeBox(canvas, borderPaint, rect, spikeSpan: Math.Max(rect.Height * 0.28f, 1f), amplitude: Math.Min(rect.Width, rect.Height) * 0.05f);
+                        break;
+                    case LetraHelper.TextBoxStyle.Ribbon:
+                        DrawRibbonBox(canvas, borderPaint, rect);
                         break;
                 }
             }
@@ -958,6 +1073,110 @@ namespace Letra200bSharp
                 pathBuilder.LineTo(xStart, rect.Bottom - amplitude / 2);
             }
 
+            pathBuilder.Close();
+            using (var path = pathBuilder.Detach())
+            {
+                canvas.DrawPath(path, paint);
+            }
+        }
+
+        /// <summary>
+        /// A rounded box with a V-shaped notch cut into the top-center edge and a point at the
+        /// bottom-center - a heart-like silhouette (cleft top, pointed bottom) built entirely from
+        /// straight chamfered edges, same low-res-friendly approach as <see cref="DrawZigzagBox"/>,
+        /// so it stays inside the same canvas every other box style already fits within rather than
+        /// needing a literal curved heart outline.
+        /// </summary>
+        private void DrawHeartBox(SKCanvas canvas, SKPaint paint, SKRect rect)
+        {
+            float chamfer = Math.Min(rect.Height * 0.28f, rect.Width * 0.2f);
+            float notchWidth = Math.Min(rect.Height * 0.5f, rect.Width * 0.3f);
+            float notchDepth = rect.Height * 0.22f;
+            float bottomPointWidth = Math.Min(rect.Height * 0.5f, rect.Width * 0.3f);
+
+            var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(rect.Left + chamfer, rect.Top);
+            pathBuilder.LineTo(rect.MidX - notchWidth / 2f, rect.Top);
+            pathBuilder.LineTo(rect.MidX, rect.Top + notchDepth);
+            pathBuilder.LineTo(rect.MidX + notchWidth / 2f, rect.Top);
+            pathBuilder.LineTo(rect.Right - chamfer, rect.Top);
+            pathBuilder.LineTo(rect.Right, rect.Top + chamfer);
+            pathBuilder.LineTo(rect.Right, rect.Bottom - chamfer);
+            pathBuilder.LineTo(rect.MidX + bottomPointWidth / 2f, rect.Bottom - chamfer);
+            pathBuilder.LineTo(rect.MidX, rect.Bottom);
+            pathBuilder.LineTo(rect.MidX - bottomPointWidth / 2f, rect.Bottom - chamfer);
+            pathBuilder.LineTo(rect.Left, rect.Bottom - chamfer);
+            pathBuilder.LineTo(rect.Left, rect.Top + chamfer);
+            pathBuilder.Close();
+            using (var path = pathBuilder.Detach())
+            {
+                canvas.DrawPath(path, paint);
+            }
+        }
+
+        /// <summary>
+        /// A rect whose full perimeter (all four sides, unlike <see cref="DrawZigzagBox"/>'s
+        /// top/bottom-only teeth) is a triangular spike pattern - used for both "Star" (sparse,
+        /// tall spikes) and "Flower" (dense, shallow spikes/scallops) via different
+        /// <paramref name="spikeSpan"/>/<paramref name="amplitude"/>, the same "one shape, two
+        /// tunings" approach <see cref="DrawZigzagBox"/> already uses for Edged/Crocodile.
+        /// </summary>
+        private void DrawPerimeterSpikeBox(SKCanvas canvas, SKPaint paint, SKRect rect, float spikeSpan, float amplitude)
+        {
+            int hCount = Math.Max((int)MathF.Round(rect.Width / spikeSpan), 2);
+            int vCount = Math.Max((int)MathF.Round(rect.Height / spikeSpan), 2);
+            float hStep = rect.Width / hCount;
+            float vStep = rect.Height / vCount;
+
+            var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(rect.Left, rect.Top);
+            for (int i = 0; i < hCount; i++)
+            {
+                float xMid = rect.Left + i * hStep + hStep / 2f;
+                float xEnd = rect.Left + (i + 1) * hStep;
+                pathBuilder.LineTo(xMid, rect.Top - amplitude);
+                pathBuilder.LineTo(xEnd, rect.Top);
+            }
+            for (int i = 0; i < vCount; i++)
+            {
+                float yMid = rect.Top + i * vStep + vStep / 2f;
+                float yEnd = rect.Top + (i + 1) * vStep;
+                pathBuilder.LineTo(rect.Right + amplitude, yMid);
+                pathBuilder.LineTo(rect.Right, yEnd);
+            }
+            for (int i = hCount - 1; i >= 0; i--)
+            {
+                float xMid = rect.Left + i * hStep + hStep / 2f;
+                float xStart = rect.Left + i * hStep;
+                pathBuilder.LineTo(xMid, rect.Bottom + amplitude);
+                pathBuilder.LineTo(xStart, rect.Bottom);
+            }
+            for (int i = vCount - 1; i >= 0; i--)
+            {
+                float yMid = rect.Top + i * vStep + vStep / 2f;
+                float yStart = rect.Top + i * vStep;
+                pathBuilder.LineTo(rect.Left - amplitude, yMid);
+                pathBuilder.LineTo(rect.Left, yStart);
+            }
+            pathBuilder.Close();
+            using (var path = pathBuilder.Detach())
+            {
+                canvas.DrawPath(path, paint);
+            }
+        }
+
+        /// <summary>A banner/ribbon with a V-shaped notch cut inward from each end, like a flag's swallowtail - unlike <see cref="DrawPointedBox"/>'s outward point, the notch stays entirely within <paramref name="rect"/>.</summary>
+        private void DrawRibbonBox(SKCanvas canvas, SKPaint paint, SKRect rect)
+        {
+            float notchDepth = Math.Min(rect.Width / 4f, rect.Height * 0.4f);
+
+            var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(rect.Left, rect.Top);
+            pathBuilder.LineTo(rect.Right, rect.Top);
+            pathBuilder.LineTo(rect.Right - notchDepth, rect.MidY);
+            pathBuilder.LineTo(rect.Right, rect.Bottom);
+            pathBuilder.LineTo(rect.Left, rect.Bottom);
+            pathBuilder.LineTo(rect.Left + notchDepth, rect.MidY);
             pathBuilder.Close();
             using (var path = pathBuilder.Detach())
             {
@@ -1139,7 +1358,7 @@ namespace Letra200bSharp
             // a whole to the small height actually reserved for it, same trick
             // RenderDinRailSegmentNatural uses: keeps the digits' proportions correct instead of
             // asking SkiaSharp's font layout to work at a height too small to be meaningful.
-            byte[] fullHeightPng = RenderTextContentImage(data, fontFamily, LetraHelper.LabelTextSize.XL, LetraHelper.TextStyle.Bold, upperCase: false, widthScale: 1f, LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign.Center, noCut: false);
+            byte[] fullHeightPng = RenderTextContentImage(data, fontFamily, LetraHelper.LabelTextSize.XL, LetraHelper.TextStyle.Normal, upperCase: false, widthScale: 1f, LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign.Center, noCut: false, formatting: new LetraHelper.TextFormatting(Bold: true));
             using (var fullHeightBitmap = SKBitmap.Decode(fullHeightPng))
             {
                 int width = Math.Max(1, (int)MathF.Round(fullHeightBitmap.Width * (numberHeight / (float)fullHeightBitmap.Height)));
@@ -1283,9 +1502,9 @@ namespace Letra200bSharp
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image</returns>
-        public byte[] PreviewImage(string text, string fontFamily = "Arial", LetraHelper.LabelTextSize size = LetraHelper.LabelTextSize.M, LetraHelper.TextStyle style = LetraHelper.TextStyle.Normal, bool upperCase = false, float widthScale = 1f, LetraHelper.TextBoxStyle boxStyle = LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign align = LetraHelper.TextAlign.Left, bool noCut = false)
+        public byte[] PreviewImage(string text, string fontFamily = "Arial", LetraHelper.LabelTextSize size = LetraHelper.LabelTextSize.M, LetraHelper.TextStyle style = LetraHelper.TextStyle.Normal, bool upperCase = false, float widthScale = 1f, LetraHelper.TextBoxStyle boxStyle = LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign align = LetraHelper.TextAlign.Left, bool noCut = false, LetraHelper.TextFormatting formatting = default, LetraHelper.FrameSpacing frameSpacing = default)
         {
-            byte[] imageBytes = RenderTextContentImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut);
+            byte[] imageBytes = RenderTextContentImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut, formatting, frameSpacing);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
 

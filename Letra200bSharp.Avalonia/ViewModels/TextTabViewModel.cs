@@ -40,6 +40,7 @@ public partial class TextTabViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(Line2Enabled))]
     [NotifyPropertyChangedFor(nameof(Line1Label))]
     [NotifyPropertyChangedFor(nameof(BoxStyleEnabled))]
+    [NotifyPropertyChangedFor(nameof(FrameSpacingEnabled))]
     public partial string SelectedSize { get; set; } = "M";
 
     [ObservableProperty]
@@ -48,6 +49,7 @@ public partial class TextTabViewModel : ViewModelBase
     public partial string SelectedStyle { get; set; } = nameof(LetraHelper.TextStyle.Normal);
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FrameSpacingEnabled))]
     public partial string SelectedBoxStyle { get; set; } = nameof(LetraHelper.TextBoxStyle.None);
 
     [ObservableProperty]
@@ -58,6 +60,38 @@ public partial class TextTabViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial decimal WidthScale { get; set; } = 1.0m;
+
+    /// <summary>Independently toggleable alongside <see cref="Italic"/>/<see cref="Underline"/>/<see cref="Strikethrough"/> and any <see cref="SelectedStyle"/> - unlike SelectedStyle's Outline/Shadow/Vertical, these combine freely (e.g. Bold + Italic + Underline together).</summary>
+    [ObservableProperty]
+    public partial bool Bold { get; set; }
+
+    [ObservableProperty]
+    public partial bool Italic { get; set; }
+
+    [ObservableProperty]
+    public partial bool Underline { get; set; }
+
+    [ObservableProperty]
+    public partial bool Strikethrough { get; set; }
+
+    /// <summary>Extra gap after every glyph, as a fraction of the em size - independent of <see cref="WidthScale"/>, which stretches glyphs instead of spacing them apart.</summary>
+    [ObservableProperty]
+    public partial decimal LetterSpacing { get; set; } = 0m;
+
+    // decimal (not int) to match how every other NumericUpDown-bound property in this tab
+    // (e.g. WidthScale) is typed - keeps Avalonia's NumericUpDown.Value (decimal?) binding
+    // straightforward, converting to int only where LetraHelper.FrameSpacing actually needs it.
+    [ObservableProperty]
+    public partial decimal FrameTop { get; set; }
+
+    [ObservableProperty]
+    public partial decimal FrameBottom { get; set; }
+
+    [ObservableProperty]
+    public partial decimal FrameLeft { get; set; }
+
+    [ObservableProperty]
+    public partial decimal FrameRight { get; set; }
 
     [ObservableProperty]
     public partial Bitmap? PreviewBitmap { get; set; }
@@ -84,6 +118,9 @@ public partial class TextTabViewModel : ViewModelBase
     /// </summary>
     public bool BoxStyleEnabled => SelectedSize != "XL";
 
+    /// <summary>Per-side frame margin only means anything once a frame is actually drawn.</summary>
+    public bool FrameSpacingEnabled => BoxStyleEnabled && SelectedBoxStyle != nameof(LetraHelper.TextBoxStyle.None);
+
     public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
@@ -100,8 +137,12 @@ public partial class TextTabViewModel : ViewModelBase
     }
 
     /// <summary>Restores a previously printed text label (see <see cref="Services.HistoryEntry.TextParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
-    public void LoadFrom(TextHistoryParams parameters)
+    public void LoadFrom(TextHistoryParams rawParameters)
     {
+        // Pre-1.4 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
+        // LetraHelper.TextStyle - map them onto the new independent Bold/Italic fields instead.
+        var parameters = rawParameters.WithLegacyStyleMigrated();
+
         Line1 = parameters.Line1;
         Line2 = parameters.Line2;
         if (parameters.FontFamily != null && FontFamilies.Contains(parameters.FontFamily))
@@ -114,9 +155,22 @@ public partial class TextTabViewModel : ViewModelBase
         SelectedBoxStyle = parameters.BoxStyle;
         UpperCase = parameters.UpperCase;
         SelectedAlign = parameters.Align;
+        Bold = parameters.Bold;
+        Italic = parameters.Italic;
+        Underline = parameters.Underline;
+        Strikethrough = parameters.Strikethrough;
+        LetterSpacing = parameters.LetterSpacing;
+        FrameTop = parameters.FrameTop;
+        FrameBottom = parameters.FrameBottom;
+        FrameLeft = parameters.FrameLeft;
+        FrameRight = parameters.FrameRight;
 
         PreviewCommand.Execute(null);
     }
+
+    private LetraHelper.TextFormatting BuildFormatting() => new(Bold, Italic, Underline, Strikethrough, (float)LetterSpacing);
+
+    private LetraHelper.FrameSpacing BuildFrameSpacing() => new((int)FrameTop, (int)FrameBottom, (int)FrameLeft, (int)FrameRight);
 
     partial void OnSelectedSizeChanged(string value)
     {
@@ -150,13 +204,15 @@ public partial class TextTabViewModel : ViewModelBase
         var widthScale = (float)WidthScale;
         var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
         var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
+        var formatting = BuildFormatting();
+        var frameSpacing = BuildFrameSpacing();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+                var previewBytes = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -199,12 +255,14 @@ public partial class TextTabViewModel : ViewModelBase
         var widthScale = (float)WidthScale;
         var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
         var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
+        var formatting = BuildFormatting();
+        var frameSpacing = BuildFrameSpacing();
         var parameters = BuildHistoryParams();
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true));
+            var job = await Task.Run(() => _letra.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing));
             var result = await LetraPrinter.PrintAsync(device, job);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
@@ -213,7 +271,7 @@ public partial class TextTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, parameters, printed: true);
+                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, formatting, frameSpacing, parameters, printed: true);
                 }
                 catch
                 {
@@ -256,7 +314,7 @@ public partial class TextTabViewModel : ViewModelBase
 
         try
         {
-            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, BuildHistoryParams(), printed: false);
+            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, BuildFormatting(), BuildFrameSpacing(), BuildHistoryParams(), printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -267,11 +325,12 @@ public partial class TextTabViewModel : ViewModelBase
 
     /// <summary>Snapshot of the tab's current settings, taken before any <c>await</c> so history always records what was actually printed.</summary>
     private TextHistoryParams BuildHistoryParams() =>
-        new(Line1, Line2, SelectedFontFamily ?? "Arial", SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign);
+        new(Line1, Line2, SelectedFontFamily ?? "Arial", SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign,
+            Bold, Italic, Underline, Strikethrough, LetterSpacing, (int)FrameTop, (int)FrameBottom, (int)FrameLeft, (int)FrameRight);
 
-    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, TextHistoryParams parameters, bool printed)
+    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, LetraHelper.TextFormatting formatting, LetraHelper.FrameSpacing frameSpacing, TextHistoryParams parameters, bool printed)
     {
-        var thumbnail = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true);
+        var thumbnail = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters, Printed: printed));
     }
 

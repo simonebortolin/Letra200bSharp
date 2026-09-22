@@ -146,6 +146,8 @@
                     </Grid>
                     <CheckBox Content="{x:Static res:Strings.TextTab_UppercaseCheckbox}" IsChecked="{Binding UpperCase}" MinWidth="210" Margin="0,0,16,10" />
                     <CheckBox Content="{x:Static res:Strings.DinRailTab_SeparatorsCheckbox}" IsChecked="{Binding ShowSeparators}" MinWidth="210" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.TextTab_BoldCheckbox}" IsChecked="{Binding Bold}" MinWidth="100" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.TextTab_ItalicCheckbox}" IsChecked="{Binding Italic}" MinWidth="100" Margin="0,0,16,10" />
                 </WrapPanel>
 
                 <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor

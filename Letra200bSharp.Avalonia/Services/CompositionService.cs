@@ -61,8 +61,12 @@ public sealed class CompositionService
     /// </summary>
     public byte[] RenderElementImage(TextHistoryParams? text, BarcodeHistoryParams? barcode, QrHistoryParams? qr, DrawHistoryParams? draw, ImageHistoryParams? image)
     {
-        if (text is { } t)
+        if (text is { } rawT)
         {
+            // A composition staged before independently-toggleable Bold/Italic existed may still
+            // carry the old "Bold"/"Italic" Style values - migrate the same way TextTabViewModel
+            // does for its own history.
+            var t = rawT.WithLegacyStyleMigrated();
             // Mirrors TextTabViewModel.ComposedText/Line2Enabled - a second line only makes sense
             // with a size/style that leaves room for it.
             bool line2Enabled = t.Style != nameof(LetraHelper.TextStyle.Vertical) && t.Size != "L" && t.Size != "XL";
@@ -76,7 +80,9 @@ public sealed class CompositionService
                 (float)t.WidthScale,
                 Enum.Parse<LetraHelper.TextBoxStyle>(t.BoxStyle),
                 Enum.Parse<LetraHelper.TextAlign>(t.Align),
-                noCut: false);
+                noCut: false,
+                t.Formatting,
+                t.FrameSpacing);
         }
 
         if (barcode is { } b)

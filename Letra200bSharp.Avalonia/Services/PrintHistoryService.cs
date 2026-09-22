@@ -15,7 +15,12 @@ public enum HistoryKind
     Compose
 }
 
-/// <summary>Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.</summary>
+/// <summary>
+/// Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4); <c>Style</c>
+/// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.4 - see
+/// <see cref="WithLegacyStyleMigrated"/> for how an old saved entry maps onto the new fields.
+/// </summary>
 public sealed record TextHistoryParams(
     string Line1,
     string? Line2,
@@ -25,7 +30,31 @@ public sealed record TextHistoryParams(
     decimal WidthScale,
     string BoxStyle,
     bool UpperCase,
-    string Align = "Left");
+    string Align = "Left",
+    bool Bold = false,
+    bool Italic = false,
+    bool Underline = false,
+    bool Strikethrough = false,
+    decimal LetterSpacing = 0m,
+    int FrameTop = 0,
+    int FrameBottom = 0,
+    int FrameLeft = 0,
+    int FrameRight = 0)
+{
+    /// <summary>A pre-1.4 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="LetraHelper.TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
+    public TextHistoryParams WithLegacyStyleMigrated() => Style switch
+    {
+        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        _ => this
+    };
+
+    [JsonIgnore]
+    public LetraHelper.TextFormatting Formatting => new(Bold, Italic, Underline, Strikethrough, (float)LetterSpacing);
+
+    [JsonIgnore]
+    public LetraHelper.FrameSpacing FrameSpacing => new(FrameTop, FrameBottom, FrameLeft, FrameRight);
+}
 
 /// <summary>
 /// Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.
@@ -101,7 +130,11 @@ public sealed record ImageHistoryParams(byte[] ContentPng);
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);
 
-/// <summary>Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.</summary>
+/// <summary>
+/// Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4) - see
+/// <see cref="WithLegacyStyleMigrated"/>, same migration <see cref="TextHistoryParams"/> needs.
+/// </summary>
 public sealed record DinRailHistoryParams(
     IReadOnlyList<DinRailRowParams> Rows,
     string? FontFamily,
@@ -109,7 +142,20 @@ public sealed record DinRailHistoryParams(
     bool UpperCase,
     string Align,
     string Sizing,
-    bool ShowSeparators);
+    bool ShowSeparators,
+    bool Bold = false,
+    bool Italic = false)
+{
+    public DinRailHistoryParams WithLegacyStyleMigrated() => Style switch
+    {
+        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        _ => this
+    };
+
+    [JsonIgnore]
+    public LetraHelper.TextFormatting Formatting => new(Bold, Italic);
+}
 
 /// <summary>
 /// One element of a composed label kept in history - the same per-tab shape as

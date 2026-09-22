@@ -57,6 +57,31 @@
                     <CheckBox Content="{x:Static res:Strings.TextTab_UppercaseCheckbox}" IsChecked="{Binding UpperCase}" MinWidth="210" Margin="0,0,16,10" />
                 </WrapPanel>
 
+                <!-- Bold/Italic/Underline/Strikethrough are independently toggleable (unlike
+                     Style's Outline/Shadow/Vertical above, which are one-at-a-time) - a row of
+                     plain checkboxes rather than a ComboBox is what actually lets them combine. -->
+                <WrapPanel>
+                    <CheckBox Content="{x:Static res:Strings.TextTab_BoldCheckbox}" IsChecked="{Binding Bold}" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.TextTab_ItalicCheckbox}" IsChecked="{Binding Italic}" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.TextTab_UnderlineCheckbox}" IsChecked="{Binding Underline}" Margin="0,0,16,10" />
+                    <CheckBox Content="{x:Static res:Strings.TextTab_StrikethroughCheckbox}" IsChecked="{Binding Strikethrough}" Margin="0,0,16,10" />
+                    <Grid ColumnDefinitions="Auto,*" MinWidth="210" Margin="0,0,16,10">
+                        <TextBlock Grid.Column="0" Text="{x:Static res:Strings.TextTab_LetterSpacingLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding LetterSpacing}" Minimum="-0.05" Maximum="0.5" Increment="0.01" FormatString="0.00" HorizontalAlignment="Stretch" />
+                    </Grid>
+                </WrapPanel>
+
+                <!-- Per-side frame margin only matters once a frame is actually drawn
+                     (BoxStyleEnabled/FrameSpacingEnabled both gate on that, same convention as
+                     the Box ComboBox above being disabled rather than hidden for XL/None). -->
+                <WrapPanel IsEnabled="{Binding FrameSpacingEnabled}">
+                    <TextBlock Text="{x:Static res:Strings.TextTab_FrameSpacingLabel}" VerticalAlignment="Center" Margin="0,0,8,10" />
+                    <NumericUpDown Value="{Binding FrameTop}" Minimum="-20" Maximum="20" Increment="1" FormatString="0" Width="90" Margin="0,0,6,10" />
+                    <NumericUpDown Value="{Binding FrameBottom}" Minimum="-20" Maximum="20" Increment="1" FormatString="0" Width="90" Margin="0,0,6,10" />
+                    <NumericUpDown Value="{Binding FrameLeft}" Minimum="-20" Maximum="20" Increment="1" FormatString="0" Width="90" Margin="0,0,6,10" />
+                    <NumericUpDown Value="{Binding FrameRight}" Minimum="-20" Maximum="20" Increment="1" FormatString="0" Width="90" Margin="0,0,16,10" />
+                </WrapPanel>
+
                 <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
                      stretched; only the (possibly long) length axis scrolls. -->

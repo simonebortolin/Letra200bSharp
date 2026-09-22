@@ -44,10 +44,10 @@ internal class TextOptions
     [Option("size", Default = LetraHelper.LabelTextSize.M, HelpText = "XS, S, M, L, or XL.")]
     public LetraHelper.LabelTextSize Size { get; set; }
 
-    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Bold, Italic, Outline, Shadow, or Vertical.")]
+    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Outline, Shadow, or Vertical.")]
     public LetraHelper.TextStyle Style { get; set; }
 
-    [Option("box", Default = LetraHelper.TextBoxStyle.None, HelpText = "None, Underline, Square, Pointed, Rounded, Edged, or Crocodile (ignored for size XL).")]
+    [Option("box", Default = LetraHelper.TextBoxStyle.None, HelpText = "None, Underline, Square, Pointed, Rounded, Edged, Crocodile, Heart, Star, Flower, or Ribbon (ignored for size XL).")]
     public LetraHelper.TextBoxStyle Box { get; set; }
 
     [Option("uppercase", HelpText = "Render the text in all uppercase.")]
@@ -55,6 +55,33 @@ internal class TextOptions
 
     [Option("width-scale", Default = 1f, HelpText = "Horizontal glyph stretch factor.")]
     public float WidthScale { get; set; }
+
+    [Option("bold", HelpText = "Bold weight - independent of --italic/--underline/--strikethrough, combines freely with any of them and with --style.")]
+    public bool Bold { get; set; }
+
+    [Option("italic", HelpText = "Italic slant - combines freely with --bold/--underline/--strikethrough and --style.")]
+    public bool Italic { get; set; }
+
+    [Option("underline", HelpText = "Underline each line of text.")]
+    public bool Underline { get; set; }
+
+    [Option("strikethrough", HelpText = "Strike through each line of text.")]
+    public bool Strikethrough { get; set; }
+
+    [Option("letter-spacing", Default = 0f, HelpText = "Extra gap after every glyph, as a fraction of the em size (0 = normal spacing) - independent of --width-scale, which stretches glyphs instead of spacing them apart.")]
+    public float LetterSpacing { get; set; }
+
+    [Option("frame-top", Default = 0, HelpText = "Extra margin (printer dots) above the --box frame.")]
+    public int FrameTop { get; set; }
+
+    [Option("frame-bottom", Default = 0, HelpText = "Extra margin (printer dots) below the --box frame.")]
+    public int FrameBottom { get; set; }
+
+    [Option("frame-left", Default = 0, HelpText = "Extra margin (printer dots) left of the --box frame.")]
+    public int FrameLeft { get; set; }
+
+    [Option("frame-right", Default = 0, HelpText = "Extra margin (printer dots) right of the --box frame.")]
+    public int FrameRight { get; set; }
 
     [Option("no-cut", HelpText = "See PrepareBitmap - the rendered text already accounts for the printer's unprintable top/bottom row.")]
     public bool NoCut { get; set; }
@@ -123,8 +150,14 @@ internal class DinOptions
     [Option("font", Default = "Arial", HelpText = "Font family name.")]
     public string Font { get; set; } = "Arial";
 
-    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Bold, Italic, Outline, or Shadow (Vertical isn't supported for DIN rail labels).")]
+    [Option("style", Default = LetraHelper.TextStyle.Normal, HelpText = "Normal, Outline, or Shadow (Vertical isn't supported for DIN rail labels).")]
     public LetraHelper.TextStyle Style { get; set; }
+
+    [Option("bold", HelpText = "Bold weight - independent of --italic, combines freely with it and with --style.")]
+    public bool Bold { get; set; }
+
+    [Option("italic", HelpText = "Italic slant - combines freely with --bold and --style.")]
+    public bool Italic { get; set; }
 
     [Option("align", Default = LetraHelper.TextAlign.Center, HelpText = "Left, Center, or Right.")]
     public LetraHelper.TextAlign Align { get; set; }
@@ -245,7 +278,9 @@ internal static class Cli
                 ? o.Line1 + Environment.NewLine + o.Line2
                 : o.Line1;
 
-            var job = LetraJob.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut);
+            var formatting = new LetraHelper.TextFormatting(o.Bold, o.Italic, o.Underline, o.Strikethrough, o.LetterSpacing);
+            var frameSpacing = new LetraHelper.FrameSpacing(o.FrameTop, o.FrameBottom, o.FrameLeft, o.FrameRight);
+            var job = LetraJob.CreateJob(text, o.Font, o.Size, o.Style, o.UpperCase, o.WidthScale, o.Box, noCut: o.NoCut, formatting: formatting, frameSpacing: frameSpacing);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
@@ -323,7 +358,8 @@ internal static class Cli
                 rows.Add((label[..separatorIndex], modules));
             }
 
-            var job = LetraJob.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut);
+            var formatting = new LetraHelper.TextFormatting(o.Bold, o.Italic);
+            var job = LetraJob.CreateDinRailRowJob(rows, o.Font, o.Style, o.UpperCase, o.Align, o.Sizing, showSeparators: !o.NoSeparators, o.NoCut, formatting);
             return await PrintAsync(o.Address, job);
         }
         catch (Exception ex)
