@@ -20,7 +20,7 @@
 
     <!-- letra200bsharp.Avalonia.Android -->
     <PackageVersion Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
-    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.3" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.2" />
 
     <!-- letra200bsharp.Avalonia.Desktop -->
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
