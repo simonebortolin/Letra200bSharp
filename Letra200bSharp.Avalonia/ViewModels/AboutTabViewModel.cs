@@ -24,7 +24,7 @@ public partial class AboutTabViewModel : ViewModelBase
     public string AppTagline => Strings.AboutTab_Tagline;
 
     /// <summary>
-    /// The build's full version including any pre-release suffix (e.g. "1.4.0-pr.12.34" for a
+    /// The build's full version including any pre-release suffix (e.g. "1.5.0-pr.12.34" for a
     /// pull request pre-release), or "dev" if it was built without one.
     /// </summary>
     public string AppVersion { get; } = FormatVersion();

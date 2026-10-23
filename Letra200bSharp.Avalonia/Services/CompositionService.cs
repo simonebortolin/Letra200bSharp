@@ -141,7 +141,7 @@ public sealed class CompositionService
                 return;
             }
 
-            // Image elements staged by an earlier 1.4 build stored the source photo under a
+            // Image elements staged by an earlier 1.5 pre-release build stored the source photo under a
             // different field and deserialize without content - drop them rather than fail later.
             foreach (var element in loaded.Where(e => e.Kind != ComposeElementKind.Image || e.ImageParams?.ContentPng != null))
             {

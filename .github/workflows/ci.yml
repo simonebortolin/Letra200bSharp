@@ -30,8 +30,8 @@ jobs:
     name: Resolve Version
     runs-on: ubuntu-latest
     outputs:
-      # Full version stamped into the build and artifact names: "1.4.0" on main,
-      # "1.4.0-pr.12.34" (PR number, workflow run number) on a pull request.
+      # Full version stamped into the build and artifact names: "1.5.0" on main,
+      # "1.5.0-pr.12.34" (PR number, workflow run number) on a pull request.
       version: ${{ steps.resolve.outputs.version }}
       version_prefix: ${{ steps.resolve.outputs.version_prefix }}
       version_suffix: ${{ steps.resolve.outputs.version_suffix }}

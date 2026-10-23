@@ -145,7 +145,7 @@ public partial class DinRailTabViewModel : ViewModelBase
     /// <summary>Restores a previously printed DIN rail strip (see <see cref="Services.HistoryEntry.DinRailParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
     public void LoadFrom(DinRailHistoryParams rawParameters)
     {
-        // Pre-1.4 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
+        // Pre-1.5 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
         // LetraHelper.TextStyle - map them onto the new independent Bold/Italic fields instead.
         var parameters = rawParameters.WithLegacyStyleMigrated();
 

@@ -17,8 +17,8 @@ public enum HistoryKind
 
 /// <summary>
 /// Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.
-/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4); <c>Style</c>
-/// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.4 - see
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.5); <c>Style</c>
+/// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.5 - see
 /// <see cref="WithLegacyStyleMigrated"/> for how an old saved entry maps onto the new fields.
 /// </summary>
 public sealed record TextHistoryParams(
@@ -41,7 +41,7 @@ public sealed record TextHistoryParams(
     int FrameLeft = 0,
     int FrameRight = 0)
 {
-    /// <summary>A pre-1.4 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="LetraHelper.TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
+    /// <summary>A pre-1.5 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="LetraHelper.TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
     public TextHistoryParams WithLegacyStyleMigrated() => Style switch
     {
         "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
@@ -58,7 +58,7 @@ public sealed record TextHistoryParams(
 
 /// <summary>
 /// Enough of a Barcode tab's state to restore it and let the user reprint - see <see cref="ViewModels.BarcodeTabViewModel.LoadFrom"/>.
-/// <c>ShowNumber</c> is a legacy (pre-1.4) flag, read only from existing history files and never
+/// <c>ShowNumber</c> is a legacy (pre-1.5) flag, read only from existing history files and never
 /// written back; <see cref="WithLegacyCaptionMigrated"/> maps it to the caption it always rendered as.
 /// </summary>
 public sealed record BarcodeHistoryParams(
@@ -132,7 +132,7 @@ public sealed record DinRailRowParams(string Text, decimal Modules);
 
 /// <summary>
 /// Enough of a DIN Rail tab's state to restore it and let the user reprint - see <see cref="ViewModels.DinRailTabViewModel.LoadFrom"/>.
-/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.4) - see
+/// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.5) - see
 /// <see cref="WithLegacyStyleMigrated"/>, same migration <see cref="TextHistoryParams"/> needs.
 /// </summary>
 public sealed record DinRailHistoryParams(
