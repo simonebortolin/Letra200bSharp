@@ -21,6 +21,10 @@
     <!-- letra200bsharp.Avalonia.Android -->
     <PackageVersion Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.3" />
+    <!-- AndroidX Core 1.19 (pulled in by SplashScreen via AppCompatResources) merged the
+         core-ktx classes into core; an older transitive Core.Core.Ktx (from Avalonia.Android)
+         then duplicates them and D8 fails. Pin core-ktx to the matching 1.19 stub. -->
+    <PackageVersion Include="Xamarin.AndroidX.Core.Core.Ktx" Version="1.19.0.1" />
 
     <!-- letra200bsharp.Avalonia.Desktop -->
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
