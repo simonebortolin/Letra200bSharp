@@ -2,10 +2,10 @@ using System.Collections.ObjectModel;
 using Avalonia.Controls.Notifications;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
+using Microsoft.Extensions.DependencyInjection;
 using SukiUI.Toasts;
 
 namespace Letra200bSharp.Avalonia.ViewModels;
@@ -23,13 +23,13 @@ public partial class MainViewModel : ViewModelBase
     public const int HistoryTabIndex = 7;
     public const int AboutTabIndex = 8;
 
-    public ObservableCollection<BluetoothDevice> Devices { get; } = new();
+    public ObservableCollection<PrinterInfo> Devices { get; } = new();
 
     [ObservableProperty]
     public partial int SelectedTabIndex { get; set; }
 
     [ObservableProperty]
-    public partial BluetoothDevice? SelectedDevice { get; set; }
+    public partial PrinterInfo? SelectedDevice { get; set; }
 
     [ObservableProperty]
     public partial bool IsRefreshing { get; set; }
@@ -47,36 +47,37 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatsDisplayText))]
-    public partial LetraPrintResult? LastPrintResult { get; set; }
+    public partial PrintResult? LastPrintResult { get; set; }
 
     /// <summary>
     /// A YouTube "stats for nerds"-style dump of the last print attempt's protocol-level numbers
-    /// (see <see cref="LetraPrintStats"/>) - purely for curiosity, not shown anywhere else.
+    /// (see <see cref="PrintStatistics"/>) - purely for curiosity, not shown anywhere else.
     /// </summary>
     public string? StatsDisplayText
     {
         get
         {
-            if (LastPrintResult is not { Stats: { } stats } result)
+            if (LastPrintResult is not { Statistics: { } stats } result)
             {
                 return null;
             }
 
-            return string.Join(Environment.NewLine,
+            var lines = new List<string>
+            {
                 $"Job:          {LastPrintKind}",
                 $"Result:       {(result.Printed ? "printed" : "failed")} (status {result.StatusCode?.ToString() ?? "none"})",
                 $"Bytes sent:   {stats.TotalBytes} B across {stats.PacketCount} packet{(stats.PacketCount == 1 ? "" : "s")}",
                 $"Elapsed:      {stats.Elapsed.TotalMilliseconds:0} ms",
-                $"Service UUID: {stats.ServiceUuid}",
-                $"MTU:          {stats.RequestedMtu} requested, {(stats.MtuNegotiated ? "negotiated" : "not confirmed")}");
+            };
+            lines.AddRange(stats.Details.Select(detail => $"{(detail.Key + ":").PadRight(13)} {detail.Value}"));
+            return string.Join(Environment.NewLine, lines);
         }
     }
 
     private readonly PrintHistoryService _historyService = new();
     private readonly SymbolLibraryService _symbolLibrary = new();
-    private readonly IRenderHelper _renderHelper = new RenderHelper();
+    private readonly ILabelPrintingService _printing;
     private readonly CompositionService _compositionService;
-    private readonly ILetraHelper _letraHelper;
 
     public ImageTabViewModel Image { get; }
     public TextTabViewModel Text { get; }
@@ -90,16 +91,18 @@ public partial class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
-        _letraHelper = new LetraHelper(_renderHelper);
-        _compositionService = new CompositionService(_renderHelper);
+        // Every supported printer is a driver registered here - see LetraBuilder.AddDriver for
+        // adding one that isn't packaged as its own Add...() extension.
+        _printing = LabelPrinting.Create(letra => letra.AddLetraTag200b());
+        _compositionService = new CompositionService(_printing);
 
-        Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Image", result));
-        Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Text", result));
-        Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Barcode", result));
-        Qr = new QrTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("2D Code", result));
-        Draw = new DrawTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _symbolLibrary, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Draw", result));
-        DinRail = new DinRailTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _renderHelper, _letraHelper, result => RecordPrintStats("DinRail", result));
-        Compose = new ComposeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _renderHelper, _letraHelper, result => RecordPrintStats("Compose", result));
+        Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("Image", result));
+        Text = new TextTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("Text", result));
+        Barcode = new BarcodeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("Barcode", result));
+        Qr = new QrTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("2D Code", result));
+        Draw = new DrawTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _symbolLibrary, _compositionService, _printing, result => RecordPrintStats("Draw", result));
+        DinRail = new DinRailTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _printing, result => RecordPrintStats("DinRail", result));
+        Compose = new ComposeTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("Compose", result));
         History = new HistoryTabViewModel(_historyService, Text, Barcode, Qr, Draw, DinRail, Compose, index => SelectedTabIndex = index);
         About = new AboutTabViewModel();
 
@@ -108,12 +111,12 @@ public partial class MainViewModel : ViewModelBase
 
     /// <summary>
     /// Updates the "stats for nerds" panel with the outcome of any print attempt that got far
-    /// enough to produce <see cref="LetraPrintStats"/> - including failed ones (a timeout or a
+    /// enough to produce <see cref="PrintStatistics"/> - including failed ones (a timeout or a
     /// bad status code is exactly the kind of thing worth seeing the raw numbers for).
     /// </summary>
-    private void RecordPrintStats(string kind, LetraPrintResult result)
+    private void RecordPrintStats(string kind, PrintResult result)
     {
-        if (result.Stats == null)
+        if (result.Statistics == null)
         {
             return;
         }
@@ -146,13 +149,13 @@ public partial class MainViewModel : ViewModelBase
             // With the radio off (or no adapter at all) a scan either just comes back empty -
             // indistinguishable from "printer not nearby" - or, on Windows, throws a bare
             // "Element not found", so check up front and say what's actually wrong.
-            if (!await Bluetooth.GetAvailabilityAsync())
+            if (!await _printing.IsAnyDriverAvailableAsync())
             {
                 ReportStatus(Strings.MainView_BluetoothUnavailable, true);
                 return;
             }
 
-            var devices = await LetraPrinter.ScanForDevicesAsync();
+            var devices = await _printing.DiscoverAsync();
             foreach (var device in devices)
             {
                 if (!Devices.Any(it => it.Id == device.Id))
@@ -172,7 +175,7 @@ public partial class MainViewModel : ViewModelBase
             bool available;
             try
             {
-                available = await Bluetooth.GetAvailabilityAsync();
+                available = await _printing.IsAnyDriverAvailableAsync();
             }
             catch
             {

@@ -8,12 +8,38 @@
 C# library and mobile and desktop applications for printing images to a Dymo LetraTag 200B labelprinter, fork of [letra200bsharp](https://github.com/brz/letra200bsharp).
 
 ## Repository contents
-- **Letra200bSharp** contains:
-  - Logic for resizing / converting an input image to a matrix representing the black and white pixels of the image
-  - Protocol for communicating with the device
+- **Letra200bSharp** is the printer-agnostic core library: the label model (`TextLabel`, `BarcodeLabel`, `TwoDCodeLabel`, `ImageLabel`, `DinRailLabel`, `ComposedLabel`), the `ILabelPrinterDriver` contract every printer implements, and the `AddLetra()` builder with its single entrypoint, `ILabelPrintingService` - see [Using the library](#using-the-library)
+- **Letra200bSharp.200b** is the Dymo LetraTag 200B driver: its SkiaSharp renderer, its Bluetooth LE wire format and transport
+- **Letra200bSharp.Tests** holds the [TUnit](https://tunit.dev) tests - the BLE protocol (including the ESC sequence-number regression), driver registration, every rendering feature and history compatibility - run in CI on Linux, Windows and macOS (`dotnet test --project Letra200bSharp.Tests -p:TargetFrameworks=net10.0`)
 - **Letra200bSharp.Avalonia** is a cross-platform Avalonia application with a tab each for printing an image, text, or a 1D barcode label, plus a **History** tab that keeps the last 50 successful prints (with a thumbnail) and lets you reprint a text or barcode job with one tap. Follows the system's light/dark theme and adapts its layout to the available width, from phone to desktop
   - **Letra200bSharp.Avalonia.Desktop** is the Windows/Linux desktop app. Launched with no arguments it opens the GUI; launched with arguments it instead runs headless as a CLI, with one verb per tab - `image`, `text`, `barcode` - plus `list-devices` to scan for nearby printers (run with `--help`, or `<verb> --help`, for the full option list)
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
+
+## Using the library
+Full guide and API reference: **https://simonebortolin.github.io/Letra200bSharp/** (built with DocFX from the libraries' XML docs). The libraries are published as NuGet packages (`Letra200bSharp`, `Letra200bSharp.200b`) on nuget.org and [GitHub Packages](https://github.com/simonebortolin?tab=packages&repo_name=Letra200bSharp) and attached to every [release](https://github.com/simonebortolin/Letra200bSharp/releases).
+
+Register Letra with the drivers of the printers you want to support - OpenIddict-style, with a builder per driver - and use `ILabelPrintingService` for everything else:
+
+```csharp
+services.AddLetra()
+    .AddLetraTag200b(letraTag => letraTag
+        .SetDefaultFontFamily("DejaVu Sans")
+        .SetReplyTimeout(TimeSpan.FromSeconds(15)));
+
+// ...or, without a dependency injection container:
+var printing = LabelPrinting.Create(letra => letra.AddLetraTag200b());
+
+var printer = (await printing.DiscoverAsync()).First();
+var label = new TextLabel("Hello") { Size = LabelTextSize.L, Box = TextBoxStyle.Rounded, Formatting = new() { Bold = true } };
+
+byte[] previewPng = printing.RenderPreview(label, printer);
+var result = await printing.PrintAsync(printer, label);
+```
+
+Every label keeps its required content in the constructor and every option in an `init` property, so new options never break existing callers.
+
+### Adding a printer
+A printer model is one `ILabelPrinterDriver`: how to discover it, its `PrinterCapabilities`, an `ILabelRenderer` for its head, and how to send it a rendered `LabelBitmap`. Register it with `AddDriver<TMyDriver>()` (resolved from the container, so it can take its own options and services), or wrap that in your own `AddMyPrinter()` extension on `LetraBuilder` as `Letra200bSharp.200b` does with `AddLetraTag200b()`. Discovery, previews and printing then span every registered driver, and each `PrinterInfo` remembers which driver it belongs to.
 
 ## Screenshots
 Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab.
@@ -44,7 +70,7 @@ Dymo never published a spec for the LetraTag 200B's Bluetooth LE protocol - like
 - The printer also exposes a third characteristic (`...653...`, "short command", write-without-response) alongside the print request/reply pair, apparently for lightweight status queries outside of a full print job - not currently used by this project.
 - The protocol also supports an explicit "copies" command (`0x1B 0x23 <count>`) between the start-job and image-data commands, for printing multiple copies of the same label in one job - not currently sent by this project (there's no "copies" option in the UI yet), which appears to default to a single copy when omitted.
 
-Full credit for reverse-engineering this goes to [dymo-bluetooth](https://github.com/ysfchn/dymo-bluetooth), [lt200b](https://github.com/alexhorn/lt200b), [homeassistant_letratag](https://github.com/renaudallard/homeassistant_letratag) and [thermal-label](https://thermal-label.github.io/letratag/protocol/letratag-bt) - this project's protocol implementation ([LetraHelper.cs](letra200bsharp/LetraHelper.cs), [LetraPrinter.cs](letra200bsharp/LetraPrinter.cs)) is built directly on what they documented.
+Full credit for reverse-engineering this goes to [dymo-bluetooth](https://github.com/ysfchn/dymo-bluetooth), [lt200b](https://github.com/alexhorn/lt200b), [homeassistant_letratag](https://github.com/renaudallard/homeassistant_letratag) and [thermal-label](https://thermal-label.github.io/letratag/protocol/letratag-bt) - this project's protocol implementation ([LetraTagProtocol.cs](Letra200bSharp.200b/LetraTagProtocol.cs), [LetraTagBluetoothTransport.cs](Letra200bSharp.200b/LetraTagBluetoothTransport.cs)) is built directly on what they documented.
 
 ## Acknowledgements
 - [letra200bsharp](https://github.com/brz/letra200bsharp) - the original C# project this repository is forked from

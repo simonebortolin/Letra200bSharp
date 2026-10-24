@@ -4,13 +4,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- letra200bsharp -->
+    <!-- letra200bsharp (core) -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
+
+    <!-- Public API tracking of the packaged libraries (PublicAPI.*.txt) -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+
+    <!-- letra200bsharp.200b -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <!-- SkiaSharp ships no Linux native library of its own; keep this on the same version as
+         SkiaSharp (see Letra200bSharp.Avalonia.Desktop.csproj). -->
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
     <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.45" />
     <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
          Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
     <PackageVersion Include="Tmds.DBus" Version="0.95.1" />
     <PackageVersion Include="CodeGlyphX" Version="2.1.0" />
+
+    <!-- letra200bsharp.Tests -->
+    <PackageVersion Include="TUnit" Version="1.75.0" />
 
     <!-- letra200bsharp.Avalonia -->
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />

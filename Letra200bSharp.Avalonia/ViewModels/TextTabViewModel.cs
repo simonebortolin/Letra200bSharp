@@ -2,7 +2,6 @@
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -12,19 +11,18 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class TextTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
     public ObservableCollection<string> FontFamilies { get; }
-    public ObservableCollection<string> Sizes { get; } = new(Enum.GetNames<LetraHelper.LabelTextSize>());
-    public ObservableCollection<string> Styles { get; } = new(Enum.GetNames<LetraHelper.TextStyle>());
-    public ObservableCollection<string> BoxStyles { get; } = new(Enum.GetNames<LetraHelper.TextBoxStyle>());
-    public ObservableCollection<string> Aligns { get; } = new(Enum.GetNames<LetraHelper.TextAlign>());
+    public ObservableCollection<string> Sizes { get; } = new(Enum.GetNames<LabelTextSize>());
+    public ObservableCollection<string> Styles { get; } = new(Enum.GetNames<TextStyle>());
+    public ObservableCollection<string> BoxStyles { get; } = new(Enum.GetNames<TextBoxStyle>());
+    public ObservableCollection<string> Aligns { get; } = new(Enum.GetNames<TextAlign>());
 
     [ObservableProperty]
     public partial string Line1 { get; set; } = "Hello world";
@@ -46,14 +44,14 @@ public partial class TextTabViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Line2Enabled))]
     [NotifyPropertyChangedFor(nameof(Line1Label))]
-    public partial string SelectedStyle { get; set; } = nameof(LetraHelper.TextStyle.Normal);
+    public partial string SelectedStyle { get; set; } = nameof(TextStyle.Normal);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FrameSpacingEnabled))]
-    public partial string SelectedBoxStyle { get; set; } = nameof(LetraHelper.TextBoxStyle.None);
+    public partial string SelectedBoxStyle { get; set; } = nameof(TextBoxStyle.None);
 
     [ObservableProperty]
-    public partial string SelectedAlign { get; set; } = nameof(LetraHelper.TextAlign.Left);
+    public partial string SelectedAlign { get; set; } = nameof(TextAlign.Left);
 
     [ObservableProperty]
     public partial bool UpperCase { get; set; }
@@ -80,7 +78,7 @@ public partial class TextTabViewModel : ViewModelBase
 
     // decimal (not int) to match how every other NumericUpDown-bound property in this tab
     // (e.g. WidthScale) is typed - keeps Avalonia's NumericUpDown.Value (decimal?) binding
-    // straightforward, converting to int only where LetraHelper.FrameSpacing actually needs it.
+    // straightforward, converting to int only where FrameSpacing actually needs it.
     [ObservableProperty]
     public partial decimal FrameTop { get; set; }
 
@@ -106,29 +104,28 @@ public partial class TextTabViewModel : ViewModelBase
     /// A second line doesn't make sense with L/XL (barely any margin left to split between
     /// two lines) or with the Vertical style (already splits into one line per character).
     /// </summary>
-    public bool Line2Enabled => SelectedStyle != nameof(LetraHelper.TextStyle.Vertical) && SelectedSize != "L" && SelectedSize != "XL";
+    public bool Line2Enabled => SelectedStyle != nameof(TextStyle.Vertical) && SelectedSize != "L" && SelectedSize != "XL";
 
     /// <summary>"Text:" on its own when there's only one line, "Text Line 1:" once a second line is available too.</summary>
     public string Line1Label => Line2Enabled ? Strings.TextTab_Line1LabelWithLine2 : Strings.TextTab_Line1LabelSingle;
 
     /// <summary>
     /// XL fills the entire printable height with no margin around the text (see
-    /// <see cref="LetraHelper.LabelTextSize.XL"/>), so there's no room left to draw a border
+    /// <see cref="LabelTextSize.XL"/>), so there's no room left to draw a border
     /// without it overlapping the text or the printer's unprintable edges.
     /// </summary>
     public bool BoxStyleEnabled => SelectedSize != "XL";
 
     /// <summary>Per-side frame margin only means anything once a frame is actually drawn.</summary>
-    public bool FrameSpacingEnabled => BoxStyleEnabled && SelectedBoxStyle != nameof(LetraHelper.TextBoxStyle.None);
+    public bool FrameSpacingEnabled => BoxStyleEnabled && SelectedBoxStyle != nameof(TextBoxStyle.None);
 
-    public TextTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public TextTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
@@ -140,7 +137,7 @@ public partial class TextTabViewModel : ViewModelBase
     public void LoadFrom(TextHistoryParams rawParameters)
     {
         // Pre-1.5 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
-        // LetraHelper.TextStyle - map them onto the new independent Bold/Italic fields instead.
+        // TextStyle - map them onto the new independent Bold/Italic fields instead.
         var parameters = rawParameters.WithLegacyStyleMigrated();
 
         Line1 = parameters.Line1;
@@ -168,19 +165,33 @@ public partial class TextTabViewModel : ViewModelBase
         PreviewCommand.Execute(null);
     }
 
-    private LetraHelper.TextFormatting BuildFormatting() => new(Bold, Italic, Underline, Strikethrough, (float)LetterSpacing);
-
-    private LetraHelper.FrameSpacing BuildFrameSpacing() => new((int)FrameTop, (int)FrameBottom, (int)FrameLeft, (int)FrameRight);
+    /// <summary>
+    /// Snapshot of the tab's current settings as a label, taken before any <c>await</c>. Always
+    /// edge-to-edge: a standalone text label uses the printer's full head height.
+    /// </summary>
+    private TextLabel BuildLabel(string text) => new(text)
+    {
+        FontFamily = SelectedFontFamily ?? "Arial",
+        Size = Enum.Parse<LabelTextSize>(SelectedSize),
+        Style = Enum.Parse<TextStyle>(SelectedStyle),
+        UpperCase = UpperCase,
+        WidthScale = (float)WidthScale,
+        Box = Enum.Parse<TextBoxStyle>(SelectedBoxStyle),
+        Align = Enum.Parse<TextAlign>(SelectedAlign),
+        Formatting = new TextFormatting { Bold = Bold, Italic = Italic, Underline = Underline, Strikethrough = Strikethrough, LetterSpacing = (float)LetterSpacing },
+        FrameSpacing = new FrameSpacing { Top = (int)FrameTop, Bottom = (int)FrameBottom, Left = (int)FrameLeft, Right = (int)FrameRight },
+        EdgeToEdge = true
+    };
 
     partial void OnSelectedSizeChanged(string value)
     {
         if (!BoxStyleEnabled)
         {
-            SelectedBoxStyle = nameof(LetraHelper.TextBoxStyle.None);
+            SelectedBoxStyle = nameof(TextBoxStyle.None);
         }
     }
 
-    /// <summary>Joins the two lines with <see cref="Environment.NewLine"/> so <see cref="LetraHelper"/> renders them stacked.</summary>
+    /// <summary>Joins the two lines with <see cref="Environment.NewLine"/> so the renderer prints them stacked.</summary>
     private string ComposedText => Line2Enabled && !string.IsNullOrEmpty(Line2)
         ? Line1 + Environment.NewLine + Line2
         : Line1;
@@ -197,22 +208,15 @@ public partial class TextTabViewModel : ViewModelBase
             return;
         }
 
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var upperCase = UpperCase;
-        var widthScale = (float)WidthScale;
-        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        var formatting = BuildFormatting();
-        var frameSpacing = BuildFrameSpacing();
+        var label = BuildLabel(text);
+        var printer = _getSelectedDevice();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing);
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -248,22 +252,13 @@ public partial class TextTabViewModel : ViewModelBase
             return;
         }
 
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var upperCase = UpperCase;
-        var widthScale = (float)WidthScale;
-        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        var formatting = BuildFormatting();
-        var frameSpacing = BuildFrameSpacing();
+        var label = BuildLabel(text);
         var parameters = BuildHistoryParams();
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, label);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -271,7 +266,7 @@ public partial class TextTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, formatting, frameSpacing, parameters, printed: true);
+                    RecordHistory(label, parameters, printed: true);
                 }
                 catch
                 {
@@ -305,16 +300,9 @@ public partial class TextTabViewModel : ViewModelBase
             return;
         }
 
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var size = Enum.Parse<LetraHelper.LabelTextSize>(SelectedSize);
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var widthScale = (float)WidthScale;
-        var boxStyle = Enum.Parse<LetraHelper.TextBoxStyle>(SelectedBoxStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-
         try
         {
-            RecordHistory(text, fontFamily, size, style, UpperCase, widthScale, boxStyle, align, BuildFormatting(), BuildFrameSpacing(), BuildHistoryParams(), printed: false);
+            RecordHistory(BuildLabel(text), BuildHistoryParams(), printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -328,10 +316,10 @@ public partial class TextTabViewModel : ViewModelBase
         new(Line1, Line2, SelectedFontFamily ?? "Arial", SelectedSize, SelectedStyle, WidthScale, SelectedBoxStyle, UpperCase, SelectedAlign,
             Bold, Italic, Underline, Strikethrough, LetterSpacing, (int)FrameTop, (int)FrameBottom, (int)FrameLeft, (int)FrameRight);
 
-    private void RecordHistory(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, LetraHelper.TextFormatting formatting, LetraHelper.FrameSpacing frameSpacing, TextHistoryParams parameters, bool printed)
+    private void RecordHistory(TextLabel label, TextHistoryParams parameters, bool printed)
     {
-        var thumbnail = _render.PreviewImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, true, formatting, frameSpacing);
-        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, text, thumbnail, TextParams: parameters, Printed: printed));
+        var thumbnail = _printing.RenderPreview(label, _getSelectedDevice());
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Text, label.Text, thumbnail, TextParams: parameters, Printed: printed));
     }
 
     /// <summary>Adds the current text label to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>

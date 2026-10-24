@@ -21,7 +21,7 @@
                     <ComboBox ItemsSource="{Binding Symbologies}" SelectedItem="{Binding SelectedSymbology}" Width="180" />
                 </StackPanel>
 
-                <!-- What LetraHelper actually resolved the data to: symbol name, dots per module
+                <!-- What the renderer actually resolved the data to: symbol name, dots per module
                      on each axis, and the resulting physical module size - plus a warning when
                      that size is at/below the practical scanning limit (~0.16 mm). -->
                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0" IsVisible="{Binding HasSymbolInfo}">
@@ -31,7 +31,7 @@
                     <TextBlock Text="{Binding SymbolInfoText}" Opacity="0.75" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                <!-- Fixed height matching the renderer's preview baked-in nearest-neighbor
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
                      stretched; only the (possibly long) length axis scrolls. -->
                 <Border BorderBrush="Gray" BorderThickness="1" Background="White" Margin="0,10,0,0" Height="136">

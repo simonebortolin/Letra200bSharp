@@ -38,6 +38,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Letra200bSharp\Letra200bSharp.csproj" />
+    <ProjectReference Include="..\Letra200bSharp.200b\Letra200bSharp.200b.csproj" />
   </ItemGroup>
 </Project>

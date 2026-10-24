@@ -83,7 +83,7 @@
                                            ToolTip.Tip="{x:Static res:Strings.DinRailTab_DragHandleTooltip}" />
                                 <!-- Warns that this row's text needs so much shrinking to fit its
                                      module count that it'll likely print too small to read -
-                                     computed from LetraHelper.DinRailRequiredScale, not just a
+                                     computed from IDinRailLayout.RequiredScale, not just a
                                      character-count guess, so it accounts for the actual font/style/wrap. -->
                                 <TextBlock Grid.Column="1" Text="⚠" Foreground="Orange" VerticalAlignment="Center" Margin="0,0,4,0"
                                            IsVisible="{Binding IsTooSmallToReadWell}"
@@ -150,7 +150,7 @@
                     <CheckBox Content="{x:Static res:Strings.TextTab_ItalicCheckbox}" IsChecked="{Binding Italic}" MinWidth="100" Margin="0,0,16,10" />
                 </WrapPanel>
 
-                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                <!-- Fixed height matching the renderer's preview baked-in nearest-neighbor
                      upscale, same as TextTabView; only the (possibly long) length axis scrolls. -->
                 <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">
                     <suki:BusyArea IsBusy="{Binding IsPreviewLoading}">
