@@ -687,9 +687,10 @@ jobs:
             --api-key "${{ secrets.GITHUB_TOKEN }}" \
             --skip-duplicate
 
-  # nuget.org, preferably with Trusted Publishing (OIDC, no stored key): set the repository
-  # variable NUGET_USER to the nuget.org account owning the trusted publishing policy for this
-  # workflow. Alternatively store an API key in the NUGET_API_KEY secret. With neither, skip.
+  # nuget.org with Trusted Publishing (https://www.nuget.org/account/trustedpublishing): the
+  # workflow's OIDC token is exchanged for a short-lived API key, so no key is ever stored. Set the
+  # repository variable NUGET_USER to the nuget.org account owning the trusted publishing policy
+  # for this workflow (ci.yml); without it, skip.
   publish-nuget:
     name: Publish to nuget.org
     runs-on: ubuntu-latest
@@ -699,52 +700,47 @@ jobs:
       id-token: write # nuget.org Trusted Publishing
     env:
       NUGET_USER: ${{ vars.NUGET_USER }}
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
     steps:
       - name: Check configuration
         id: config
         run: |
           if [ -n "$NUGET_USER" ]; then
-            echo "mode=trusted" >> "$GITHUB_OUTPUT"
-          elif [ -n "$NUGET_API_KEY" ]; then
-            echo "mode=key" >> "$GITHUB_OUTPUT"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Neither the NUGET_USER variable nor the NUGET_API_KEY secret is configured - skip nuget.org"
-            echo "mode=none" >> "$GITHUB_OUTPUT"
+            echo "::warning::The NUGET_USER repository variable isn't configured - skip nuget.org"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download NuGet artifact
-        if: steps.config.outputs.mode != 'none'
+        if: steps.config.outputs.enabled == 'true'
         uses: actions/download-artifact@v8
         with:
           name: nupkg
           path: nupkg
 
       - name: Setup .NET
-        if: steps.config.outputs.mode != 'none'
+        if: steps.config.outputs.enabled == 'true'
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: 'ga'
 
-      # Exchanges the workflow's OIDC token for a short-lived nuget.org API key.
       - name: Log in to nuget.org
         id: login
-        if: steps.config.outputs.mode == 'trusted'
+        if: steps.config.outputs.enabled == 'true'
         uses: NuGet/login@v1
         with:
           user: ${{ env.NUGET_USER }}
 
       # The .snupkg symbol packages next to each .nupkg are pushed with it.
       - name: Push to nuget.org
-        if: steps.config.outputs.mode != 'none'
+        if: steps.config.outputs.enabled == 'true'
         env:
-          API_KEY: ${{ steps.login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
+          API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push "nupkg/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
             --api-key "$API_KEY" \
             --skip-duplicate
           echo "### nuget.org: pushed $(ls nupkg/*.nupkg | xargs -n1 basename | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
-
