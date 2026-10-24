@@ -8,7 +8,10 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
 
-    <!-- letra200bsharp.Dymo -->
+    <!-- Public API tracking of the packaged libraries (PublicAPI.*.txt) -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+
+    <!-- letra200bsharp.200b -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
     <!-- SkiaSharp ships no Linux native library of its own; keep this on the same version as
          SkiaSharp (see Letra200bSharp.Avalonia.Desktop.csproj). -->
