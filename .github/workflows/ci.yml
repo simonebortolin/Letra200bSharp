@@ -24,7 +24,16 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   DESKTOP_PROJECT: Letra200bSharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj
   ANDROID_PROJECT: Letra200bSharp.Avalonia.Android/Letra200bSharp.Avalonia.Android.csproj
+  LIBRARY_PROJECTS: >-
+    Letra200bSharp/Letra200bSharp.csproj
+    Letra200bSharp.200b/Letra200bSharp.200b.csproj
+  FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
 
+# Stages: Resolve Version -> Test (Linux, Windows, macOS) -> Pack NuGet
+#                         -> Build (Windows, Linux, Android apps)
+#                         -> Build docs -> Deploy docs (main only, after Test)
+#         -> Pre-release (pull requests) / Tag & Release + GitHub Packages (main)
+# Pre-release and release need every test, package and app build to succeed.
 jobs:
   version:
     name: Resolve Version
@@ -84,12 +93,21 @@ jobs:
           echo "### Version \`$VERSION\`" >> "$GITHUB_STEP_SUMMARY"
 
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      checks: write # trx-parser publishes a check run per TRX file
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@v7
@@ -113,7 +131,143 @@ jobs:
       # renderer's features and history compatibility. net10.0 only, so no workload is needed.
       - name: Test
         shell: bash
-        run: dotnet test --project Letra200bSharp.Tests -c Release -p:TargetFrameworks=net10.0
+        run: |
+          dotnet test --project Letra200bSharp.Tests \
+            -c Release \
+            -p:TargetFrameworks=net10.0 \
+            --results-directory TestResults \
+            --report-trx \
+            --report-trx-filename "${{ matrix.name }}.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.name }}
+          path: |
+            TestResults/*.trx
+            TestResults/*.html
+          if-no-files-found: warn
+
+      # A fork's pull request gets a read-only token, which can't create check runs.
+      - name: Publish test reports
+        if: >-
+          always() && hashFiles('TestResults/*.trx') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: NasAmin/trx-parser@v0.8.1
+        with:
+          TRX_PATH: ${{ github.workspace }}/TestResults
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_PREFIX: ${{ matrix.name }}
+
+  pack:
+    name: Pack NuGet
+    runs-on: ubuntu-latest
+    needs: [version, test]
+    env:
+      VERSION_SUFFIX: ${{ needs.version.outputs.version_suffix }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'BuildVersion.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # The LetraTag 200B driver also targets net10.0-android.
+      - name: Install android workload
+        run: dotnet workload install android
+
+      - name: Pack
+        run: |
+          for PROJECT in $LIBRARY_PROJECTS; do
+            dotnet pack "$PROJECT" \
+              -c Release \
+              -o artifacts \
+              -p:VersionSuffix="$VERSION_SUFFIX" \
+              -p:ContinuousIntegrationBuild=true \
+              -p:EnableWindowsTargeting=true
+          done
+          ls -lh artifacts
+
+      - name: Upload NuGet artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    needs: [version]
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-docs-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'BuildVersion.props', 'dotnet-tools.json') }}
+          restore-keys: nuget-docs-${{ runner.os }}-
+
+      # DocFX reads the API reference from the built libraries and their XML docs (see
+      # docs/docfx.json) - net10.0 only, so no workload is needed.
+      - name: Build libraries
+        run: |
+          dotnet build Letra200bSharp.200b/Letra200bSharp.200b.csproj \
+            -c Release \
+            -p:TargetFrameworks=net10.0 \
+            -p:CopyLocalLockFileAssemblies=true
+
+      - name: Build site
+        run: |
+          dotnet tool restore
+          dotnet docfx docs/docfx.json --warningsAsErrors
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_site
+
+  deploy-docs:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    needs: [docs, test]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
 
   build-windows:
     name: Build Windows (${{ matrix.rid }})
@@ -321,7 +475,7 @@ jobs:
   prerelease:
     name: PR Pre-release
     runs-on: ubuntu-latest
-    needs: [version, test, build-windows, build-linux, build-android]
+    needs: [version, test, pack, build-windows, build-linux, build-android]
     # Same-repository PRs only. A fork's pull_request run gets a read-only token, and this
     # deliberately doesn't use pull_request_target: that would run untrusted fork code with a
     # write token. Fork PRs still build and upload workflow artifacts, just no GitHub pre-release.
@@ -357,7 +511,7 @@ jobs:
       - name: Collect pre-release assets
         run: |
           mkdir -p release
-          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.apk' \) \
+          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.apk' -o -name '*.nupkg' -o -name '*.snupkg' \) \
             -exec cp {} release/ \;
           cd release
           sha256sum * > SHA256SUMS
@@ -366,7 +520,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: 'release/*.zip, release/*.tar.gz, release/*.apk'
+          subject-path: 'release/*.zip, release/*.tar.gz, release/*.apk, release/*.nupkg, release/*.snupkg'
 
       # One pre-release per PR, replaced on every push so testers always have a single, current
       # link. Each run gets its own tag (pr-<N>-<run>-<attempt>): the repository uses immutable
@@ -427,10 +581,11 @@ jobs:
   release:
     name: Tag & Release
     runs-on: ubuntu-latest
-    needs: [version, test, build-windows, build-linux, build-android]
+    needs: [version, test, pack, build-windows, build-linux, build-android]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     permissions:
       contents: write
+      packages: write
       statuses: write
       id-token: write
       attestations: write
@@ -448,7 +603,7 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir -p release
-          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.apk' \) \
+          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.apk' -o -name '*.nupkg' -o -name '*.snupkg' \) \
             -exec cp {} release/ \;
           ls -lh release
 
@@ -461,7 +616,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: 'release/*.zip, release/*.tar.gz, release/*.apk'
+          subject-path: 'release/*.zip, release/*.tar.gz, release/*.apk, release/*.nupkg, release/*.snupkg'
 
       - name: Tag release
         id: tag
@@ -472,9 +627,25 @@ jobs:
           git tag "v$VERSION"
           git push origin "v$VERSION"
 
+      - name: Setup .NET
+        if: steps.tag.outcome == 'success'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Push to GitHub Packages
+        id: push
+        if: steps.tag.outcome == 'success'
+        run: |
+          dotnet nuget push "release/*.nupkg" \
+            --source "$FEED_URL" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate
+
       - name: Create GitHub Release
         id: gh_release
-        if: steps.tag.outcome == 'success'
+        if: steps.push.outcome == 'success'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
@@ -492,7 +663,7 @@ jobs:
             DESCRIPTION="Version v$VERSION already released — bump <VersionPrefix> in BuildVersion.props."
           elif [ "${{ steps.gh_release.outcome }}" = "success" ]; then
             STATE=success
-            DESCRIPTION="Released v$VERSION with Windows, Linux and Android artifacts."
+            DESCRIPTION="Released v$VERSION: apps, and NuGet packages on GitHub Packages."
           else
             STATE=failure
             DESCRIPTION="Release failed with an unexpected error."

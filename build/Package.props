@@ -1,0 +1,24 @@
+<Project>
+  <!-- NuGet package metadata shared by the libraries (Letra200bSharp, Letra200bSharp.200b). -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Authors>Simone Bortolin</Authors>
+    <Copyright>Copyright (c) Simone Bortolin</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://simonebortolin.github.io/Letra200bSharp/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/simonebortolin/Letra200bSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>https://github.com/simonebortolin/Letra200bSharp/releases</PackageReleaseNotes>
+    <PackageTags>label printer;dymo;letratag;letratag 200b;bluetooth le;barcode;qr code</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Source Link + symbol package, so consumers can step into the library. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)PackageReadme.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
+</Project>

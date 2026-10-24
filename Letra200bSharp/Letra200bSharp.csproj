@@ -3,7 +3,10 @@
   <!-- Printer-agnostic core: the label model, the driver contract every printer implements,
        and the AddLetra() builder/entrypoint. No rendering engine or transport lives here -
        those come with each driver package (see Letra200bSharp.200b). -->
+  <Import Project="..\build\Package.props" />
+
   <PropertyGroup>
+    <Description>Printer-agnostic core of Letra200bSharp: the label model (text, barcodes, 2D codes, images, DIN rail, compositions), the ILabelPrinterDriver contract to support any printer, and the AddLetra() builder with its ILabelPrintingService entrypoint.</Description>
     <!-- Plural, even with a single target, so CI's -p:TargetFrameworks=... override applies here too. -->
     <TargetFrameworks>net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
