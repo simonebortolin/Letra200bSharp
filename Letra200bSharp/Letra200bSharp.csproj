@@ -2,7 +2,7 @@
 
   <!-- Printer-agnostic core: the label model, the driver contract every printer implements,
        and the AddLetra() builder/entrypoint. No rendering engine or transport lives here -
-       those come with each driver package (see Letra200bSharp.Dymo). -->
+       those come with each driver package (see Letra200bSharp.200b). -->
   <PropertyGroup>
     <!-- Plural, even with a single target, so CI's -p:TargetFrameworks=... override applies here too. -->
     <TargetFrameworks>net10.0</TargetFrameworks>

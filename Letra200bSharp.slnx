@@ -36,6 +36,6 @@
   <Project Path="Letra200bSharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
   <Project Path="Letra200bSharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
   <Project Path="Letra200bSharp/Letra200bSharp.csproj" />
-  <Project Path="Letra200bSharp.Dymo/Letra200bSharp.Dymo.csproj" />
+  <Project Path="Letra200bSharp.200b/Letra200bSharp.200b.csproj" />
   <Project Path="Letra200bSharp.Tests/Letra200bSharp.Tests.csproj" />
 </Solution>

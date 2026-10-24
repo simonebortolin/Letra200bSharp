@@ -1,4 +1,4 @@
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
     /// <summary>The printer-ready dots produced by <see cref="RenderHelper.PrepareImage"/> - see <see cref="LabelBitmap"/> for the layout of <see cref="Data"/>.</summary>
     internal sealed class ImageInfo

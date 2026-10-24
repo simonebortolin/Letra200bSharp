@@ -1,4 +1,4 @@
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
     /// <summary>
     /// The Dymo LetraTag 200B's BLE wire format for a print job (header, chunked body, checksum),

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using InTheHand.Bluetooth;
-using Letra200bSharp.Dymo.Resources;
+using Letra200bSharp.LetraTag200b.Resources;
 
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
     /// <summary>
     /// Discovers and talks to Dymo LetraTag 200B printers over Bluetooth LE. Service/characteristic
@@ -15,12 +15,12 @@ namespace Letra200bSharp.Dymo
         private static readonly BluetoothUuid PrintRequestUuid = BluetoothUuid.FromGuid(new Guid("be3dd651-2b3d-42f1-99c1-f0f749dd0678"));
         private static readonly BluetoothUuid PrintReplyUuid = BluetoothUuid.FromGuid(new Guid("be3dd652-2b3d-42f1-99c1-f0f749dd0678"));
 
-        private readonly DymoLetraTagOptions _options;
+        private readonly LetraTag200bOptions _options;
 
         /// <summary>Devices returned by the last scans, by id - reused when printing, so a just-discovered device doesn't need resolving again.</summary>
         private readonly ConcurrentDictionary<string, BluetoothDevice> _knownDevices = new();
 
-        public LetraTagBluetoothTransport(DymoLetraTagOptions options)
+        public LetraTagBluetoothTransport(LetraTag200bOptions options)
         {
             _options = options;
         }
@@ -141,8 +141,8 @@ namespace Letra200bSharp.Dymo
                     Elapsed = stopwatch.Elapsed,
                     Details = new Dictionary<string, string>
                     {
-                        [DymoLetraTagDriver.ServiceUuidDetail] = uuid.ToString(),
-                        [DymoLetraTagDriver.MtuDetail] = $"{_options.RequestedMtu} requested, {(mtuNegotiated ? "negotiated" : "not confirmed")}"
+                        [LetraTag200bDriver.ServiceUuidDetail] = uuid.ToString(),
+                        [LetraTag200bDriver.MtuDetail] = $"{_options.RequestedMtu} requested, {(mtuNegotiated ? "negotiated" : "not confirmed")}"
                     }
                 };
 

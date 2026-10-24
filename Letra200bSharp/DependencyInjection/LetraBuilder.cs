@@ -15,7 +15,7 @@ public sealed class LetraOptions
 
 /// <summary>
 /// Configures Letra: returned by <c>services.AddLetra()</c>, it's where drivers are registered,
-/// either through a driver package's own extension (e.g. <c>AddDymoLetraTag()</c>) or with
+/// either through a driver package's own extension (e.g. <c>AddLetraTag200b()</c>) or with
 /// <see cref="AddDriver{TDriver}"/> for a driver of your own.
 /// </summary>
 public sealed class LetraBuilder

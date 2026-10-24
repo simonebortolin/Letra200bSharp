@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Letra200bSharp.Dymo.Resources {
+namespace Letra200bSharp.LetraTag200b.Resources {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace Letra200bSharp.Dymo.Resources {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Letra200bSharp.Dymo.Resources.Strings", typeof(Strings).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Letra200bSharp.LetraTag200b.Resources.Strings", typeof(Strings).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;

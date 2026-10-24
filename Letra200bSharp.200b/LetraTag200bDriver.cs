@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Options;
 
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
-    /// <summary>Settings of the Dymo LetraTag 200B driver - configure them with <see cref="Microsoft.Extensions.DependencyInjection.DymoLetraTagBuilder"/>.</summary>
-    public sealed class DymoLetraTagOptions
+    /// <summary>Settings of the Dymo LetraTag 200B driver - configure them with <see cref="Microsoft.Extensions.DependencyInjection.LetraTag200bBuilder"/>.</summary>
+    public sealed class LetraTag200bOptions
     {
         /// <summary>Font family used for text whose label doesn't name one.</summary>
         public string DefaultFontFamily { get; set; } = "Arial";
@@ -23,12 +23,12 @@ namespace Letra200bSharp.Dymo
 
     /// <summary>
     /// <see cref="ILabelPrinterDriver"/> for the Dymo LetraTag 200B over Bluetooth LE. Register it with
-    /// <c>services.AddLetra().AddDymoLetraTag()</c>.
+    /// <c>services.AddLetra().AddLetraTag200b()</c>.
     /// </summary>
-    public sealed class DymoLetraTagDriver : ILabelPrinterDriver
+    public sealed class LetraTag200bDriver : ILabelPrinterDriver
     {
         /// <summary>The driver's <see cref="Name"/>, as stored in <see cref="PrinterInfo.Driver"/>.</summary>
-        public const string DriverName = "Dymo.LetraTag200B";
+        public const string DriverName = "LetraTag200b";
 
         /// <summary><see cref="PrintStatistics.Details"/> key of the GATT service UUID the printer advertised.</summary>
         public const string ServiceUuidDetail = "Service UUID";
@@ -38,7 +38,7 @@ namespace Letra200bSharp.Dymo
 
         private readonly LetraTagBluetoothTransport _transport;
 
-        public DymoLetraTagDriver(IOptions<DymoLetraTagOptions> options)
+        public LetraTag200bDriver(IOptions<LetraTag200bOptions> options)
         {
             var value = options.Value;
             _transport = new LetraTagBluetoothTransport(value);

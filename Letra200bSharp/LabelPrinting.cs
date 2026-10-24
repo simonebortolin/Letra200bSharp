@@ -7,7 +7,7 @@ public static class LabelPrinting
 {
     /// <summary>
     /// Builds a standalone <see cref="ILabelPrintingService"/>, e.g.
-    /// <c>LabelPrinting.Create(letra => letra.AddDymoLetraTag())</c>. Applications that already
+    /// <c>LabelPrinting.Create(letra => letra.AddLetraTag200b())</c>. Applications that already
     /// use <c>Microsoft.Extensions.DependencyInjection</c> should call <c>services.AddLetra()</c>
     /// instead.
     /// </summary>

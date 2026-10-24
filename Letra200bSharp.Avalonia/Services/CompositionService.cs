@@ -62,29 +62,29 @@ public sealed class CompositionService
     {
         // TextHistoryParams.ToLabel also migrates a composition staged before independently-
         // toggleable Bold/Italic existed, the same way TextTabViewModel does for its own history.
-        if (text != null)
+        if (text is { } t)
         {
-            return text.ToLabel(edgeToEdge: false);
+            return t.ToLabel(edgeToEdge: false);
         }
 
-        if (barcode != null)
+        if (barcode is { } b)
         {
-            return barcode.ToLabel();
+            return b.ToLabel();
         }
 
-        if (qr != null)
+        if (qr is { } q)
         {
-            return qr.ToLabel();
+            return q.ToLabel();
         }
 
-        if (draw != null)
+        if (draw is { } d)
         {
-            return draw.ToLabel();
+            return d.ToLabel();
         }
 
-        if (image != null)
+        if (image is { } i)
         {
-            return image.ToLabel();
+            return i.ToLabel();
         }
 
         throw new InvalidOperationException("This element has no renderable content.");

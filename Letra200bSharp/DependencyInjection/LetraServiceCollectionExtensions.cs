@@ -8,7 +8,7 @@ public static class LetraServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="ILabelPrintingService"/> and returns a <see cref="LetraBuilder"/> to
-    /// register printer drivers with, e.g. <c>services.AddLetra().AddDymoLetraTag()</c>.
+    /// register printer drivers with, e.g. <c>services.AddLetra().AddLetraTag200b()</c>.
     /// </summary>
     public static LetraBuilder AddLetra(this IServiceCollection services)
     {

@@ -6,7 +6,7 @@ namespace Letra200bSharp.Tests;
 /// <summary>Font-independent checks of the Dymo LetraTag 200B renderer through the public API.</summary>
 public class LetraTagLabelRendererTests
 {
-    private readonly ILabelPrinterDriver _driver = LabelPrinting.Create(letra => letra.AddDymoLetraTag()).DefaultDriver;
+    private readonly ILabelPrinterDriver _driver = LabelPrinting.Create(letra => letra.AddLetraTag200b()).DefaultDriver;
 
     private ILabelRenderer Renderer => _driver.Renderer;
 

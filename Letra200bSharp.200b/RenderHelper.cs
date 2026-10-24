@@ -8,7 +8,7 @@ using CodeGlyphX.DataMatrix;
 using CodeGlyphX.UpcE;
 using Letra200bSharp;
 
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
     /// <summary>
     /// Turns LetraTag 200B label content into pixels: a 32-dot head whose first and last dot rows

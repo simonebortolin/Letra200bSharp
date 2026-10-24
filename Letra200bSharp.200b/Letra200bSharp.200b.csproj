@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Driver for the Dymo LetraTag 200B: its SkiaSharp renderer, its BLE wire format and its
-       Bluetooth LE transport. Registered with services.AddLetra().AddDymoLetraTag(). -->
+       Bluetooth LE transport. Registered with services.AddLetra().AddLetraTag200b(). -->
   <PropertyGroup>
     <TargetFrameworks>net10.0-windows10.0.19041;net10.0-android;net10.0</TargetFrameworks>
+    <!-- A namespace segment can't start with a digit, so "200b" can't be one. -->
+    <RootNamespace>Letra200bSharp.LetraTag200b</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

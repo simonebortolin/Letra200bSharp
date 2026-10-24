@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <!-- net10.0 only: the driver's Windows/Android targets need their platform to run. -->
-    <ProjectReference Include="..\Letra200bSharp.Dymo\Letra200bSharp.Dymo.csproj" SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="..\Letra200bSharp.200b\Letra200bSharp.200b.csproj" SetTargetFramework="TargetFramework=net10.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -14,7 +14,7 @@ internal sealed class LabelPrintingService : ILabelPrintingService
         {
             throw new InvalidOperationException(
                 "No label printer driver is registered. Register one when configuring Letra, " +
-                "e.g. services.AddLetra().AddDymoLetraTag(), or builder.AddDriver<TDriver>() for your own.");
+                "e.g. services.AddLetra().AddLetraTag200b(), or builder.AddDriver<TDriver>() for your own.");
         }
 
         _driversByName = new Dictionary<string, ILabelPrinterDriver>(StringComparer.Ordinal);

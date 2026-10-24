@@ -1,4 +1,4 @@
-using Letra200bSharp.Dymo;
+using Letra200bSharp.LetraTag200b;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -138,19 +138,19 @@ public class LabelPrintingServiceTests
     }
 
     [Fact]
-    public void AddDymoLetraTag_registers_the_driver_with_its_options()
+    public void AddLetraTag200b_registers_the_driver_with_its_options()
     {
         var services = new ServiceCollection();
-        services.AddLetra().AddDymoLetraTag(dymo => dymo
+        services.AddLetra().AddLetraTag200b(letraTag => letraTag
             .SetReplyTimeout(TimeSpan.FromSeconds(3))
             .SetRequestedMtu(256)
             .SetDefaultFontFamily("DejaVu Sans"));
         var provider = services.BuildServiceProvider();
 
         var service = provider.GetRequiredService<ILabelPrintingService>();
-        var options = provider.GetRequiredService<IOptions<DymoLetraTagOptions>>().Value;
+        var options = provider.GetRequiredService<IOptions<LetraTag200bOptions>>().Value;
 
-        Assert.Equal(DymoLetraTagDriver.DriverName, Assert.Single(service.Drivers).Name);
+        Assert.Equal(LetraTag200bDriver.DriverName, Assert.Single(service.Drivers).Name);
         Assert.Equal(TimeSpan.FromSeconds(3), options.ReplyTimeout);
         Assert.Equal(256, options.RequestedMtu);
         Assert.Equal("DejaVu Sans", options.DefaultFontFamily);

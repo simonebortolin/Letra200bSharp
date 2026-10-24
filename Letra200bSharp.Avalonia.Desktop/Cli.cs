@@ -183,7 +183,7 @@ internal class DinOptions
 /// </summary>
 internal static class Cli
 {
-    private static readonly ILabelPrintingService Printing = LabelPrinting.Create(letra => letra.AddDymoLetraTag());
+    private static readonly ILabelPrintingService Printing = LabelPrinting.Create(letra => letra.AddLetraTag200b());
 
     /// <returns>
     /// The process exit code, or <c>null</c> if <paramref name="args"/> didn't start with one

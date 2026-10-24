@@ -1,4 +1,4 @@
-using Letra200bSharp.Dymo;
+using Letra200bSharp.LetraTag200b;
 
 namespace Letra200bSharp.Tests;
 

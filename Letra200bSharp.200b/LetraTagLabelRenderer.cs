@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace Letra200bSharp.Dymo
+namespace Letra200bSharp.LetraTag200b
 {
     /// <summary>
     /// <see cref="ILabelRenderer"/> for the Dymo LetraTag 200B: maps each <see cref="Label"/> onto the
@@ -11,7 +11,7 @@ namespace Letra200bSharp.Dymo
         private readonly RenderHelper _render;
         private readonly string _defaultFontFamily;
 
-        public LetraTagLabelRenderer(DymoLetraTagOptions options)
+        public LetraTagLabelRenderer(LetraTag200bOptions options)
         {
             _defaultFontFamily = options.DefaultFontFamily;
             _render = new RenderHelper(_defaultFontFamily);

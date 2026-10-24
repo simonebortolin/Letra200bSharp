@@ -93,7 +93,7 @@ public partial class MainViewModel : ViewModelBase
     {
         // Every supported printer is a driver registered here - see LetraBuilder.AddDriver for
         // adding one that isn't packaged as its own Add...() extension.
-        _printing = LabelPrinting.Create(letra => letra.AddDymoLetraTag());
+        _printing = LabelPrinting.Create(letra => letra.AddLetraTag200b());
         _compositionService = new CompositionService(_printing);
 
         Image = new ImageTabViewModel(() => SelectedDevice, ReportStatus, _historyService, _compositionService, _printing, result => RecordPrintStats("Image", result));
