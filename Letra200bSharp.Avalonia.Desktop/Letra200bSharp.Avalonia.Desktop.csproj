@@ -37,6 +37,14 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="CommandLineParser" />
   </ItemGroup>
+  <!-- SkiaSharp 4 brings its own matching Windows/macOS native library, but on Linux the native
+       one only comes from Avalonia.Skia, still built against SkiaSharp 3 (libSkiaSharp 119) -
+       which SkiaSharp 4 refuses to load, so every render (Avalonia's own and the label
+       previews) failed with "The version of the native libSkiaSharp library (119.0) is
+       incompatible". Pin the Linux native library to the managed SkiaSharp version. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+  </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041'">
 
 		<PackageReference Include="Microsoft.Windows.CsWin32" />

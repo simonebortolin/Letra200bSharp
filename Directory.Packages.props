@@ -11,7 +11,7 @@
     <!-- letra200bsharp.Dymo -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
     <!-- SkiaSharp ships no Linux native library of its own; keep this on the same version as
-         SkiaSharp. -->
+         SkiaSharp (see Letra200bSharp.Avalonia.Desktop.csproj). -->
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
     <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.45" />
     <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
