@@ -87,13 +87,15 @@ public class LetraTag200bFeatureTests
     [Test]
     public async Task Formatting_options_each_change_the_print()
     {
-        var plain = Text("Hello");
+        // Only "changes": how much ink a decoration adds depends on the font - e.g. with Arial an
+        // underline shrinks the glyphs to make room for it, so the total ink can even go down.
+        var plain = Ink.Hex(Text("Hello"));
 
-        await Assert.That(Ink.Count(Text("Hello", l => l with { Formatting = new() { Bold = true } }))).IsGreaterThan(Ink.Count(plain));
-        await Assert.That(Ink.Count(Text("Hello", l => l with { Formatting = new() { Underline = true } }))).IsGreaterThan(Ink.Count(plain));
-        await Assert.That(Ink.Count(Text("Hello", l => l with { Formatting = new() { Strikethrough = true } }))).IsGreaterThan(Ink.Count(plain));
-        await Assert.That(Ink.Hex(Text("Hello", l => l with { Formatting = new() { Italic = true } }))).IsNotEqualTo(Ink.Hex(plain));
-        await Assert.That(Text("Hello", l => l with { Formatting = new() { LetterSpacing = 0.5f } }).Length).IsGreaterThan(plain.Length);
+        await Assert.That(Ink.Hex(Text("Hello", l => l with { Formatting = new() { Bold = true } }))).IsNotEqualTo(plain);
+        await Assert.That(Ink.Hex(Text("Hello", l => l with { Formatting = new() { Italic = true } }))).IsNotEqualTo(plain);
+        await Assert.That(Ink.Hex(Text("Hello", l => l with { Formatting = new() { Underline = true } }))).IsNotEqualTo(plain);
+        await Assert.That(Ink.Hex(Text("Hello", l => l with { Formatting = new() { Strikethrough = true } }))).IsNotEqualTo(plain);
+        await Assert.That(Text("Hello", l => l with { Formatting = new() { LetterSpacing = 0.5f } }).Length).IsGreaterThan(Text("Hello").Length);
     }
 
     [Test]
@@ -259,7 +261,7 @@ public class LetraTag200bFeatureTests
     {
         var label = Rail(("Lights", 1m), ("Kitchen sockets", 2m));
 
-        await Assert.That(Ink.Count(_renderer.Render(label with { ShowSeparators = true }))).IsGreaterThan(Ink.Count(_renderer.Render(label)));
+        await Assert.That(Ink.Hex(_renderer.Render(label with { ShowSeparators = true }))).IsNotEqualTo(Ink.Hex(_renderer.Render(label)));
         await Assert.That(Ink.Hex(_renderer.Render(label with { Sizing = DinRailSizing.Uniform })))
             .IsNotEqualTo(Ink.Hex(_renderer.Render(label with { Sizing = DinRailSizing.MaxPerLabel })));
     }
