@@ -11,6 +11,7 @@
     <PackageReleaseNotes>https://github.com/simonebortolin/Letra200bSharp/releases</PackageReleaseNotes>
     <PackageTags>label printer;dymo;letratag;letratag 200b;bluetooth le;barcode;qr code</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <!-- Source Link + symbol package, so consumers can step into the library. -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -20,5 +21,6 @@
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)PackageReadme.md" Pack="true" PackagePath="README.md" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="icon.png" Visible="false" />
   </ItemGroup>
 </Project>

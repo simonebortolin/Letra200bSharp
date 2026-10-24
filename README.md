@@ -16,7 +16,7 @@ C# library and mobile and desktop applications for printing images to a Dymo Let
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
 
 ## Using the library
-Full guide and API reference: **https://simonebortolin.github.io/Letra200bSharp/** (built with DocFX from the libraries' XML docs). The libraries are published as NuGet packages (`Letra200bSharp`, `Letra200bSharp.200b`) on [GitHub Packages](https://github.com/simonebortolin?tab=packages&repo_name=Letra200bSharp) and attached to every [release](https://github.com/simonebortolin/Letra200bSharp/releases).
+Full guide and API reference: **https://simonebortolin.github.io/Letra200bSharp/** (built with DocFX from the libraries' XML docs). The libraries are published as NuGet packages (`Letra200bSharp`, `Letra200bSharp.200b`) on nuget.org and [GitHub Packages](https://github.com/simonebortolin?tab=packages&repo_name=Letra200bSharp) and attached to every [release](https://github.com/simonebortolin/Letra200bSharp/releases).
 
 Register Letra with the drivers of the printers you want to support - OpenIddict-style, with a builder per driver - and use `ILabelPrintingService` for everything else:
 
