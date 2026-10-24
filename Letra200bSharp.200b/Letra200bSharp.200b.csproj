@@ -16,6 +16,12 @@
     <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
 
+  <!-- The Android target generates a Resource designer class, public by default: this library has
+       no Android resources, so keep it out of the public API (and of PublicAPI.*.txt). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+    <AndroidResourceDesignerClassModifier>internal</AndroidResourceDesignerClassModifier>
+  </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Update="Resources\Strings.resx">
       <Generator>ResXFileCodeGenerator</Generator>
