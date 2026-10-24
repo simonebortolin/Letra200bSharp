@@ -54,40 +54,15 @@ public sealed class CompositionService
     }
 
     /// <summary>
-    /// One element as a part of a <see cref="ComposedLabel"/> - which lays every part out at the
-    /// printable head height, whatever its own tab defaults to standalone, so they all line up.
-    /// Draw and Image elements are already print-sized content and are composed as-is.
+    /// One element as a part of a <see cref="ComposedLabel"/> - whichever of its per-tab settings
+    /// is set (see <see cref="IComposablePart"/>). Draw and Image elements are already print-sized
+    /// content and are composed as-is.
     /// </summary>
     public static Label ToLabel(TextHistoryParams? text, BarcodeHistoryParams? barcode, QrHistoryParams? qr, DrawHistoryParams? draw, ImageHistoryParams? image)
     {
-        // TextHistoryParams.ToLabel also migrates a composition staged before independently-
-        // toggleable Bold/Italic existed, the same way TextTabViewModel does for its own history.
-        if (text is { } t)
-        {
-            return t.ToLabel(edgeToEdge: false);
-        }
-
-        if (barcode is { } b)
-        {
-            return b.ToLabel();
-        }
-
-        if (qr is { } q)
-        {
-            return q.ToLabel();
-        }
-
-        if (draw is { } d)
-        {
-            return d.ToLabel();
-        }
-
-        if (image is { } i)
-        {
-            return i.ToLabel();
-        }
-
-        throw new InvalidOperationException("This element has no renderable content.");
+        var part = new IComposablePart?[] { text, barcode, qr, draw, image }.FirstOrDefault(p => p != null)
+            ?? throw new InvalidOperationException("This element has no renderable content.");
+        return part.ToComposedPart();
     }
 
     public static Label ToLabel(ComposeElement element) =>

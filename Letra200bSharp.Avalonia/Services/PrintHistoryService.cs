@@ -16,6 +16,19 @@ public enum HistoryKind
 }
 
 /// <summary>
+/// A tab's saved settings that can become one part of a Compose tab strip (see
+/// <see cref="CompositionService.ToLabel(ComposeElement)"/>).
+/// </summary>
+public interface IComposablePart
+{
+    /// <summary>
+    /// These settings as a part of a <see cref="ComposedLabel"/>, which lays every part out at the
+    /// printable head height whatever its own tab defaults to standalone, so they all line up.
+    /// </summary>
+    Label ToComposedPart();
+}
+
+/// <summary>
 /// Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.
 /// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.5); <c>Style</c>
 /// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.5 - see
@@ -39,7 +52,7 @@ public sealed record TextHistoryParams(
     int FrameTop = 0,
     int FrameBottom = 0,
     int FrameLeft = 0,
-    int FrameRight = 0)
+    int FrameRight = 0) : IComposablePart
 {
     /// <summary>A pre-1.5 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
     public TextHistoryParams WithLegacyStyleMigrated() => Style switch
@@ -73,6 +86,9 @@ public sealed record TextHistoryParams(
             EdgeToEdge = edgeToEdge
         };
     }
+
+    /// <summary>Also migrates a composition staged before independently-toggleable Bold/Italic existed - see <see cref="ToLabel"/>.</summary>
+    Label IComposablePart.ToComposedPart() => ToLabel(edgeToEdge: false);
 }
 
 /// <summary>
@@ -88,7 +104,7 @@ public sealed record BarcodeHistoryParams(
     string CaptionFontFamily = "Arial",
     string CaptionSize = "M",
     string CaptionAlign = "Center",
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false) : IComposablePart
 {
     /// <summary>The old fixed "show number" caption was exactly Below / Arial / M / Center.</summary>
     public BarcodeHistoryParams WithLegacyCaptionMigrated() =>
@@ -109,13 +125,15 @@ public sealed record BarcodeHistoryParams(
 
     /// <summary>The label these settings describe.</summary>
     public BarcodeLabel ToLabel() => new(Data, ParsedSymbology) { Caption = ToCaption(), EdgeToEdge = NoCut };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>
 /// Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.
 /// <c>Symbology</c> is the tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.
 /// </summary>
-public sealed record QrHistoryParams(string Data, string Symbology)
+public sealed record QrHistoryParams(string Data, string Symbology) : IComposablePart
 {
     /// <summary>2D Code tab ComboBox label paired with the <see cref="TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
     public static readonly IReadOnlyList<(string Label, TwoDSymbology Value)> SymbologyChoices = new[]
@@ -135,6 +153,8 @@ public sealed record QrHistoryParams(string Data, string Symbology)
 
     /// <summary>The label these settings describe.</summary>
     public TwoDCodeLabel ToLabel() => new(Data, ParsedSymbology);
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>
@@ -143,10 +163,12 @@ public sealed record QrHistoryParams(string Data, string Symbology)
 /// is always a small, already print-sized monochrome drawing rather than an arbitrary photo, so
 /// keeping the full bytes around is cheap.
 /// </summary>
-public sealed record DrawHistoryParams(byte[] Png, int WidthDots)
+public sealed record DrawHistoryParams(byte[] Png, int WidthDots) : IComposablePart
 {
     /// <summary>The drawing as a label - already print-sized, at the printable head height.</summary>
     public ImageLabel ToLabel() => new(Png) { PreRendered = true };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>
@@ -156,10 +178,12 @@ public sealed record DrawHistoryParams(byte[] Png, int WidthDots)
 /// composition.json and history.json small no matter how large the original image was, and
 /// avoids re-thresholding the photo on every preview.
 /// </summary>
-public sealed record ImageHistoryParams(byte[] ContentPng)
+public sealed record ImageHistoryParams(byte[] ContentPng) : IComposablePart
 {
     /// <summary>The stored content as a label, printed pixel-exact.</summary>
     public ImageLabel ToLabel() => new(ContentPng) { PreRendered = true };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>

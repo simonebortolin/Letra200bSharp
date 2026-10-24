@@ -20,7 +20,7 @@
     <PackageVersion Include="CodeGlyphX" Version="2.1.0" />
 
     <!-- letra200bsharp.Tests -->
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="TUnit" Version="1.75.0" />
 
     <!-- letra200bsharp.Avalonia -->
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />

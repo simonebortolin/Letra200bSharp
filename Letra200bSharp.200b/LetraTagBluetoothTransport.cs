@@ -179,7 +179,7 @@ namespace Letra200bSharp.LetraTag200b
             }
         }
 
-        private static PrintResult InterpretStatusCode(byte statusCode)
+        internal static PrintResult InterpretStatusCode(byte statusCode)
         {
             var (printed, message) = statusCode switch
             {

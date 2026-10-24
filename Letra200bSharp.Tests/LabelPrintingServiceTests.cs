@@ -53,24 +53,26 @@ internal sealed class FakeDriver : ILabelPrinterDriver, ILabelRenderer
 
 public class LabelPrintingServiceTests
 {
-    [Fact]
+    [Test]
     public async Task A_custom_driver_registered_with_AddDriver_renders_and_prints()
     {
         var driver = new FakeDriver("Fake", true, "a");
         var service = LabelPrinting.Create(letra => letra.AddDriver(driver));
 
-        var printer = Assert.Single(await service.DiscoverAsync(TestContext.Current.CancellationToken));
-        var result = await service.PrintAsync(printer, new TextLabel("hello"), TestContext.Current.CancellationToken);
+        var printers = await service.DiscoverAsync();
+        await Assert.That(printers.Count).IsEqualTo(1);
+        var result = await service.PrintAsync(printers[0], new TextLabel("hello"));
 
-        Assert.True(result.Printed);
-        var (printedOn, bitmap) = Assert.Single(driver.Printed);
-        Assert.Equal(printer, printedOn);
-        Assert.Equal(5, bitmap.Length);
-        Assert.Equal(8, bitmap.HeadDots);
+        await Assert.That(result.Printed).IsTrue();
+        await Assert.That(driver.Printed.Count).IsEqualTo(1);
+        var (printedOn, bitmap) = driver.Printed[0];
+        await Assert.That(printedOn).IsEqualTo(printers[0]);
+        await Assert.That(bitmap.Length).IsEqualTo(5);
+        await Assert.That(bitmap.HeadDots).IsEqualTo(8);
     }
 
-    [Fact]
-    public void AddDriver_of_T_resolves_the_driver_from_the_container()
+    [Test]
+    public async Task AddDriver_of_T_resolves_the_driver_from_the_container()
     {
         var services = new ServiceCollection();
         services.AddSingleton(new FakeDriver("FromContainer"));
@@ -78,10 +80,11 @@ public class LabelPrintingServiceTests
 
         var service = services.BuildServiceProvider().GetRequiredService<ILabelPrintingService>();
 
-        Assert.Equal("FromContainer", Assert.Single(service.Drivers).Name);
+        await Assert.That(service.Drivers.Count).IsEqualTo(1);
+        await Assert.That(service.Drivers[0].Name).IsEqualTo("FromContainer");
     }
 
-    [Fact]
+    [Test]
     public async Task Discovery_spans_every_available_driver_and_skips_unavailable_ones()
     {
         var service = LabelPrinting.Create(letra => letra
@@ -89,56 +92,56 @@ public class LabelPrintingServiceTests
             .AddDriver(new FakeDriver("Off", false, "3"))
             .AddDriver(new FakeDriver("Two", true, "4")));
 
-        var printers = await service.DiscoverAsync(TestContext.Current.CancellationToken);
+        var printers = await service.DiscoverAsync();
 
-        Assert.Equal(new[] { "1", "2", "4" }, printers.Select(p => p.Id));
-        Assert.True(await service.IsAnyDriverAvailableAsync(TestContext.Current.CancellationToken));
+        await Assert.That(string.Join(",", printers.Select(p => p.Id))).IsEqualTo("1,2,4");
+        await Assert.That(await service.IsAnyDriverAvailableAsync()).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task Printing_goes_to_the_printers_own_driver()
     {
         var one = new FakeDriver("One", true, "1");
         var two = new FakeDriver("Two", true, "2");
         var service = LabelPrinting.Create(letra => letra.AddDriver(one).AddDriver(two));
 
-        await service.PrintAsync(two.Printers[0], new TextLabel("x"), TestContext.Current.CancellationToken);
+        await service.PrintAsync(two.Printers[0], new TextLabel("x"));
 
-        Assert.Empty(one.Printed);
-        Assert.Single(two.Printed);
+        await Assert.That(one.Printed.Count).IsEqualTo(0);
+        await Assert.That(two.Printed.Count).IsEqualTo(1);
     }
 
-    [Fact]
-    public void Previews_without_a_printer_use_the_default_driver()
+    [Test]
+    public async Task Previews_without_a_printer_use_the_default_driver()
     {
         var service = LabelPrinting.Create(letra => letra
             .AddDriver(new FakeDriver("One"))
             .AddDriver(new FakeDriver("Two"))
             .SetDefaultDriver("Two"));
 
-        Assert.Equal("Two", service.DefaultDriver.Name);
-        Assert.Equal("Two"u8.ToArray(), service.RenderPreview(new TextLabel("x")));
-        Assert.Equal("One"u8.ToArray(), service.RenderPreview(new TextLabel("x"), new PrinterInfo("p", "p", "One")));
+        await Assert.That(service.DefaultDriver.Name).IsEqualTo("Two");
+        await Assert.That(System.Text.Encoding.UTF8.GetString(service.RenderPreview(new TextLabel("x")))).IsEqualTo("Two");
+        await Assert.That(System.Text.Encoding.UTF8.GetString(service.RenderPreview(new TextLabel("x"), new PrinterInfo("p", "p", "One")))).IsEqualTo("One");
     }
 
-    [Fact]
-    public void Misconfiguration_is_reported_when_the_service_is_built()
+    [Test]
+    public async Task Misconfiguration_is_reported_when_the_service_is_built()
     {
-        Assert.Throws<InvalidOperationException>(() => LabelPrinting.Create(_ => { }));
-        Assert.Throws<InvalidOperationException>(() => LabelPrinting.Create(letra => letra.AddDriver(new FakeDriver("A")).AddDriver(new FakeDriver("A"))));
-        Assert.Throws<InvalidOperationException>(() => LabelPrinting.Create(letra => letra.AddDriver(new FakeDriver("A")).SetDefaultDriver("B")));
+        await Assert.That(() => LabelPrinting.Create(_ => { })).Throws<InvalidOperationException>();
+        await Assert.That(() => LabelPrinting.Create(letra => letra.AddDriver(new FakeDriver("A")).AddDriver(new FakeDriver("A")))).Throws<InvalidOperationException>();
+        await Assert.That(() => LabelPrinting.Create(letra => letra.AddDriver(new FakeDriver("A")).SetDefaultDriver("B"))).Throws<InvalidOperationException>();
     }
 
-    [Fact]
-    public void Unknown_printer_drivers_are_rejected()
+    [Test]
+    public async Task Unknown_printer_drivers_are_rejected()
     {
         var service = LabelPrinting.Create(letra => letra.AddDriver(new FakeDriver("A")));
 
-        Assert.Throws<InvalidOperationException>(() => service.GetDriver(new PrinterInfo("p", "p", "Missing")));
+        await Assert.That(() => service.GetDriver(new PrinterInfo("p", "p", "Missing"))).Throws<InvalidOperationException>();
     }
 
-    [Fact]
-    public void AddLetraTag200b_registers_the_driver_with_its_options()
+    [Test]
+    public async Task AddLetraTag200b_registers_the_driver_with_its_options()
     {
         var services = new ServiceCollection();
         services.AddLetra().AddLetraTag200b(letraTag => letraTag
@@ -150,9 +153,10 @@ public class LabelPrintingServiceTests
         var service = provider.GetRequiredService<ILabelPrintingService>();
         var options = provider.GetRequiredService<IOptions<LetraTag200bOptions>>().Value;
 
-        Assert.Equal(LetraTag200bDriver.DriverName, Assert.Single(service.Drivers).Name);
-        Assert.Equal(TimeSpan.FromSeconds(3), options.ReplyTimeout);
-        Assert.Equal(256, options.RequestedMtu);
-        Assert.Equal("DejaVu Sans", options.DefaultFontFamily);
+        await Assert.That(service.Drivers.Count).IsEqualTo(1);
+        await Assert.That(service.Drivers[0].Name).IsEqualTo(LetraTag200bDriver.DriverName);
+        await Assert.That(options.ReplyTimeout).IsEqualTo(TimeSpan.FromSeconds(3));
+        await Assert.That(options.RequestedMtu).IsEqualTo(256);
+        await Assert.That(options.DefaultFontFamily).IsEqualTo("DejaVu Sans");
     }
 }
