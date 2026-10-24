@@ -26,6 +26,11 @@ public partial class DrawTabView : UserControl
             return;
         }
 
+        // On touch screens both enclosing ScrollViewers' scroll gesture recognizers would
+        // otherwise claim this drag as a pan - scrolling the tab/canvas and stealing capture
+        // (ending the stroke) instead of drawing. Strokes start on the canvas only, so the
+        // tab still scrolls when dragged anywhere else.
+        e.PreventGestureRecognition();
         _isDrawing = true;
         e.Pointer.Capture(CanvasImage);
         viewModel.BeginStroke();
