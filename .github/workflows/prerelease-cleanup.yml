@@ -1,6 +1,6 @@
 name: PR Pre-release Cleanup
 
-# Deletes the rolling pr-<N> pre-release (and its tag) that ci.yml publishes for a pull request,
+# Deletes the pr-<N>-* pre-releases (and their tags) that ci.yml publishes for a pull request,
 # once that PR is merged or closed.
 on:
   pull_request:
@@ -33,15 +33,19 @@ jobs:
     steps:
       - name: Delete pre-release and tag
         run: |
-          TAG="pr-${PR_NUMBER}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release delete "$TAG" --cleanup-tag --yes
-            echo "Deleted pre-release $TAG"
-          else
-            echo "No pre-release $TAG to delete"
+          # pr-<N> is the tag used before per-run tags; "pr-<N>-" can't match another PR's tags.
+          TAGS=$(gh release list --limit 1000 --json tagName \
+            --jq ".[].tagName | select(. == \"pr-${PR_NUMBER}\" or startswith(\"pr-${PR_NUMBER}-\"))")
+          if [ -z "$TAGS" ]; then
+            echo "No pre-release for PR #${PR_NUMBER} to delete"
           fi
-          # A tag can outlive its release (e.g. a release deleted by hand) - remove it too.
-          gh api -X DELETE "repos/${GH_REPO}/git/refs/tags/${TAG}" >/dev/null 2>&1 || true
+          for TAG in $TAGS; do
+            if gh release delete "$TAG" --cleanup-tag --yes; then
+              echo "Deleted pre-release $TAG"
+            else
+              echo "::warning::Could not delete pre-release $TAG"
+            fi
+          done
 
       - name: Update the pull request comment
         run: |

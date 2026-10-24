@@ -336,13 +336,15 @@ jobs:
         with:
           subject-path: 'release/*.zip, release/*.tar.gz, release/*.apk'
 
-      # One rolling pre-release per PR (tag pr-<N>), replaced on every push so testers always
-      # have a single, current link. The tag deliberately isn't "v..." so it can never be
-      # mistaken for a real release by the version job's tag check.
+      # One pre-release per PR, replaced on every push so testers always have a single, current
+      # link. Each run gets its own tag (pr-<N>-<run>-<attempt>): the repository uses immutable
+      # releases, and a tag once used by one can never be reused, even after the release is
+      # deleted. The tag deliberately isn't "v..." so it can never be mistaken for a real
+      # release by the version job's tag check.
       - name: Publish pre-release
         run: |
-          TAG="pr-${PR_NUMBER}"
-          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          TAG="pr-${PR_NUMBER}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
 
           cat > notes.md <<EOF
           Automatic pre-release for #${PR_NUMBER}: ${PR_TITLE}
@@ -364,10 +366,19 @@ jobs:
             --title "PR #${PR_NUMBER} pre-release (${VERSION})" \
             --notes-file notes.md
 
+          # Only now drop this PR's older pre-releases, so there's always one to link to.
+          # pr-<N> is the tag used before per-run tags (failed runs left drafts on it);
+          # "pr-<N>-" can't match another PR's tags (pr-3- vs pr-30-).
+          gh release list --limit 1000 --json tagName \
+            --jq ".[].tagName | select(. == \"pr-${PR_NUMBER}\" or startswith(\"pr-${PR_NUMBER}-\")) | select(. != \"${TAG}\")" |
+          while read -r OLD; do
+            gh release delete "$OLD" --cleanup-tag --yes || echo "::warning::Could not delete $OLD"
+          done
+
       - name: Comment on the pull request
         run: |
           MARKER='<!-- letra200bsharp-prerelease -->'
-          URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/pr-${PR_NUMBER}"
+          URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
           BODY="${MARKER}
           **Pre-release \`${VERSION}\` is ready:** ${URL}
 
