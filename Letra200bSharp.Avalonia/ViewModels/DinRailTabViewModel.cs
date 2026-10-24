@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -21,7 +20,7 @@ public sealed partial class DinRailRow : ObservableObject
 
     /// <summary>
     /// Set by <see cref="DinRailTabViewModel"/> when this row's text would need heavy shrinking
-    /// to fit its module count (see <see cref="IRenderHelper.DinRailRequiredScale"/>) - a hint that
+    /// to fit its module count (see <see cref="IDinRailLayout.RequiredScale"/>) - a hint that
     /// the printed text will likely be too small to read, so the user knows to either shorten it
     /// or add more modules instead of only discovering it after printing.
     /// </summary>
@@ -31,28 +30,27 @@ public sealed partial class DinRailRow : ObservableObject
 
 /// <summary>
 /// Builds a list of text/module-count rows and prints them as one continuous DIN rail strip
-/// (see <see cref="LetraHelper.CreateDinRailRowJob"/>) - unlike <see cref="TextTabViewModel"/>,
+/// (see <see cref="CreateDinRailRowJob"/>) - unlike <see cref="TextTabViewModel"/>,
 /// each row's text is always auto-fit (auto-wrapped to 2 lines if that helps it fit better,
 /// then scaled uniformly - never stretched/squeezed non-uniformly) to its own segment, with no
-/// manual height/stretch controls; see <see cref="LetraHelper.DinRailSizing"/> for the two ways
+/// manual height/stretch controls; see <see cref="DinRailSizing"/> for the two ways
 /// that uniform scale can be chosen.
 /// </summary>
 public partial class DinRailTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
     public ObservableCollection<string> FontFamilies { get; }
 
-    /// <summary>Same as <see cref="LetraHelper.TextStyle"/> minus <see cref="LetraHelper.TextStyle.Vertical"/> - one-character-per-line doesn't combine sensibly with the automatic word-wrap each segment already does.</summary>
-    public ObservableCollection<string> Styles { get; } = new(Enum.GetNames<LetraHelper.TextStyle>().Where(name => name != nameof(LetraHelper.TextStyle.Vertical)));
+    /// <summary>Same as <see cref="TextStyle"/> minus <see cref="TextStyle.Vertical"/> - one-character-per-line doesn't combine sensibly with the automatic word-wrap each segment already does.</summary>
+    public ObservableCollection<string> Styles { get; } = new(Enum.GetNames<TextStyle>().Where(name => name != nameof(TextStyle.Vertical)));
 
-    public ObservableCollection<string> Aligns { get; } = new(Enum.GetNames<LetraHelper.TextAlign>());
-    public ObservableCollection<string> Sizings { get; } = new(Enum.GetNames<LetraHelper.DinRailSizing>());
+    public ObservableCollection<string> Aligns { get; } = new(Enum.GetNames<TextAlign>());
+    public ObservableCollection<string> Sizings { get; } = new(Enum.GetNames<DinRailSizing>());
 
     public ObservableCollection<DinRailRow> Rows { get; } = new();
 
@@ -60,7 +58,7 @@ public partial class DinRailTabViewModel : ViewModelBase
     public partial string? SelectedFontFamily { get; set; }
 
     [ObservableProperty]
-    public partial string SelectedStyle { get; set; } = nameof(LetraHelper.TextStyle.Normal);
+    public partial string SelectedStyle { get; set; } = nameof(TextStyle.Normal);
 
     /// <summary>Independently toggleable alongside <see cref="Italic"/> and <see cref="SelectedStyle"/> - see TextTabViewModel's Bold for the same combinable-formatting idea.</summary>
     [ObservableProperty]
@@ -70,10 +68,10 @@ public partial class DinRailTabViewModel : ViewModelBase
     public partial bool Italic { get; set; }
 
     [ObservableProperty]
-    public partial string SelectedAlign { get; set; } = nameof(LetraHelper.TextAlign.Center);
+    public partial string SelectedAlign { get; set; } = nameof(TextAlign.Center);
 
     [ObservableProperty]
-    public partial string SelectedSizing { get; set; } = nameof(LetraHelper.DinRailSizing.MaxPerLabel);
+    public partial string SelectedSizing { get; set; } = nameof(DinRailSizing.MaxPerLabel);
 
     [ObservableProperty]
     public partial bool UpperCase { get; set; }
@@ -97,16 +95,15 @@ public partial class DinRailTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial string TotalModulesText { get; set; } = "";
 
-    /// <summary>Below this required scale (see <see cref="IRenderHelper.DinRailRequiredScale"/>), a row is flagged as likely too small to read once printed.</summary>
+    /// <summary>Below this required scale (see <see cref="IDinRailLayout.RequiredScale"/>), a row is flagged as likely too small to read once printed.</summary>
     private const float LegibilityWarningThreshold = 0.3f;
 
-    public DinRailTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public DinRailTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
@@ -123,7 +120,26 @@ public partial class DinRailTabViewModel : ViewModelBase
     partial void OnBoldChanged(bool value) => RecomputeAllWarnings();
     partial void OnItalicChanged(bool value) => RecomputeAllWarnings();
 
-    private LetraHelper.TextFormatting BuildFormatting() => new(Bold, Italic);
+    private TextFormatting BuildFormatting() => new() { Bold = Bold, Italic = Italic };
+
+    /// <summary>The renderer's DIN rail measurements, or <c>null</c> if it doesn't provide them (see <see cref="IDinRailLayout"/>).</summary>
+    private IDinRailLayout? Layout => _printing.GetRenderer(_getSelectedDevice()) as IDinRailLayout;
+
+    /// <summary>
+    /// Snapshot of the tab's current settings as a label, taken before any <c>await</c>. Always
+    /// edge-to-edge: a standalone DIN rail strip uses the printer's full head height.
+    /// </summary>
+    private DinRailLabel BuildLabel(IReadOnlyList<DinRailCell> cells) => new(cells)
+    {
+        FontFamily = SelectedFontFamily ?? "Arial",
+        Style = Enum.Parse<TextStyle>(SelectedStyle),
+        UpperCase = UpperCase,
+        Align = Enum.Parse<TextAlign>(SelectedAlign),
+        Sizing = Enum.Parse<DinRailSizing>(SelectedSizing),
+        ShowSeparators = ShowSeparators,
+        Formatting = BuildFormatting(),
+        EdgeToEdge = true
+    };
 
     private void RecomputeAllWarnings()
     {
@@ -135,18 +151,16 @@ public partial class DinRailTabViewModel : ViewModelBase
 
     private void RecomputeRowWarning(DinRailRow row)
     {
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        float scale = _render.DinRailRequiredScale(row.Text, fontFamily, style, UpperCase, align, row.Modules, true, BuildFormatting());
-        row.IsTooSmallToReadWell = scale < LegibilityWarningThreshold;
+        var layout = Layout;
+        row.IsTooSmallToReadWell = layout != null
+            && layout.RequiredScale(BuildLabel(new[] { new DinRailCell(row.Text, row.Modules) }), 0) < LegibilityWarningThreshold;
     }
 
     /// <summary>Restores a previously printed DIN rail strip (see <see cref="Services.HistoryEntry.DinRailParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
     public void LoadFrom(DinRailHistoryParams rawParameters)
     {
         // Pre-1.5 entries stored Bold/Italic as SelectedStyle values, which no longer exist on
-        // LetraHelper.TextStyle - map them onto the new independent Bold/Italic fields instead.
+        // TextStyle - map them onto the new independent Bold/Italic fields instead.
         var parameters = rawParameters.WithLegacyStyleMigrated();
 
         Rows.Clear();
@@ -163,10 +177,10 @@ public partial class DinRailTabViewModel : ViewModelBase
         {
             SelectedFontFamily = parameters.FontFamily;
         }
-        SelectedStyle = Styles.Contains(parameters.Style) ? parameters.Style : nameof(LetraHelper.TextStyle.Normal);
+        SelectedStyle = Styles.Contains(parameters.Style) ? parameters.Style : nameof(TextStyle.Normal);
         UpperCase = parameters.UpperCase;
         SelectedAlign = parameters.Align;
-        SelectedSizing = Sizings.Contains(parameters.Sizing) ? parameters.Sizing : nameof(LetraHelper.DinRailSizing.Uniform);
+        SelectedSizing = Sizings.Contains(parameters.Sizing) ? parameters.Sizing : nameof(DinRailSizing.Uniform);
         ShowSeparators = parameters.ShowSeparators;
         Bold = parameters.Bold;
         Italic = parameters.Italic;
@@ -233,14 +247,15 @@ public partial class DinRailTabViewModel : ViewModelBase
     /// <summary>The "12 mm tall · ~X mm printed"-style caption, summed across every row's own physical segment length, plus the running modules total shown next to the column header.</summary>
     private void UpdateSizeNote()
     {
-        float totalMm = Rows.Sum(row => _render.DinRailLengthMm(row.Modules));
+        var layout = Layout;
+        float totalMm = Rows.Sum(row => layout?.LengthMm(row.Modules) ?? (float)row.Modules * DinRailLabel.ModuleWidthMm);
         SizeNoteText = string.Format(Strings.DinRailTab_SizeNoteFormat, totalMm, Rows.Count);
         TotalModulesText = string.Format(Strings.DinRailTab_TotalModulesFormat, Rows.Sum(row => row.Modules));
     }
 
     private bool HasAnyText => Rows.Any(row => !string.IsNullOrWhiteSpace(row.Text));
 
-    private List<(string Text, decimal Modules)> BuildRowList() => Rows.Select(row => (row.Text, row.Modules)).ToList();
+    private List<DinRailCell> BuildRowList() => Rows.Select(row => new DinRailCell(row.Text, row.Modules)).ToList();
 
     [RelayCommand]
     private async Task PreviewAsync()
@@ -253,21 +268,15 @@ public partial class DinRailTabViewModel : ViewModelBase
             return;
         }
 
-        var rows = BuildRowList();
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        var sizing = Enum.Parse<LetraHelper.DinRailSizing>(SelectedSizing);
-        var upperCase = UpperCase;
-        var showSeparators = ShowSeparators;
-        var formatting = BuildFormatting();
+        var label = BuildLabel(BuildRowList());
+        var printer = _getSelectedDevice();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, formatting);
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -302,20 +311,12 @@ public partial class DinRailTabViewModel : ViewModelBase
             return;
         }
 
-        var rows = BuildRowList();
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        var sizing = Enum.Parse<LetraHelper.DinRailSizing>(SelectedSizing);
-        var upperCase = UpperCase;
-        var showSeparators = ShowSeparators;
-        var formatting = BuildFormatting();
+        var label = BuildLabel(BuildRowList());
 
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateDinRailRowJob(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, formatting));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, label);
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -323,7 +324,7 @@ public partial class DinRailTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(rows, fontFamily, style, upperCase, align, sizing, showSeparators, printed: true);
+                    RecordHistory(label, printed: true);
                 }
                 catch
                 {
@@ -356,15 +357,9 @@ public partial class DinRailTabViewModel : ViewModelBase
             return;
         }
 
-        var rows = BuildRowList();
-        var fontFamily = SelectedFontFamily ?? "Arial";
-        var style = Enum.Parse<LetraHelper.TextStyle>(SelectedStyle);
-        var align = Enum.Parse<LetraHelper.TextAlign>(SelectedAlign);
-        var sizing = Enum.Parse<LetraHelper.DinRailSizing>(SelectedSizing);
-
         try
         {
-            RecordHistory(rows, fontFamily, style, UpperCase, align, sizing, ShowSeparators, printed: false);
+            RecordHistory(BuildLabel(BuildRowList()), printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -373,11 +368,12 @@ public partial class DinRailTabViewModel : ViewModelBase
         }
     }
 
-    private void RecordHistory(List<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool printed)
+    private void RecordHistory(DinRailLabel label, bool printed)
     {
-        var thumbnail = _render.PreviewDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, true, BuildFormatting());
+        var rows = label.Cells;
+        var thumbnail = _printing.RenderPreview(label, _getSelectedDevice());
         var rowParams = rows.Select(row => new DinRailRowParams(row.Text, row.Modules)).ToList();
-        var parameters = new DinRailHistoryParams(rowParams, fontFamily, SelectedStyle, upperCase, SelectedAlign, SelectedSizing, showSeparators, Bold, Italic);
+        var parameters = new DinRailHistoryParams(rowParams, label.FontFamily, SelectedStyle, label.UpperCase, SelectedAlign, SelectedSizing, label.ShowSeparators, Bold, Italic);
         var summary = $"{rows.Count} label{(rows.Count == 1 ? "" : "s")}: " + string.Join(" | ", rows.Select(row => row.Text));
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.DinRail, summary, thumbnail, DinRailParams: parameters, Printed: printed));
     }

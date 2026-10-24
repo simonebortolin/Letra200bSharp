@@ -9,6 +9,7 @@
     <File Path="BuildVersion.props" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Solution Items/Pipeline/">
@@ -35,4 +36,6 @@
   <Project Path="Letra200bSharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
   <Project Path="Letra200bSharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
   <Project Path="Letra200bSharp/Letra200bSharp.csproj" />
+  <Project Path="Letra200bSharp.Dymo/Letra200bSharp.Dymo.csproj" />
+  <Project Path="Letra200bSharp.Tests/Letra200bSharp.Tests.csproj" />
 </Solution>

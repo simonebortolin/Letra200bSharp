@@ -179,6 +179,12 @@ jobs:
       - name: Install android workload
         run: dotnet workload install android
 
+      # Library unit tests (protocol, driver registration, font-independent rendering) - once,
+      # on the runner that can execute them natively.
+      - name: Test
+        if: matrix.rid == 'linux-x64'
+        run: dotnet test --project Letra200bSharp.Tests -c Release -p:TargetFrameworks=net10.0
+
       - name: Publish desktop app
         run: |
           dotnet publish "$DESKTOP_PROJECT" \

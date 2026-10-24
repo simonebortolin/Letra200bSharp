@@ -40,13 +40,13 @@ public sealed record ComposeElement(
 public sealed class CompositionService
 {
     private readonly string _filePath;
-    private readonly IRenderHelper _render;
+    private readonly ILabelPrintingService _printing;
 
     public ObservableCollection<ComposeElement> Elements { get; } = new();
 
-    public CompositionService(IRenderHelper render)
+    public CompositionService(ILabelPrintingService printing)
     {
-        _render = render;
+        _printing = printing;
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Letra200bSharp");
         Directory.CreateDirectory(directory);
         _filePath = Path.Combine(directory, "composition.json");
@@ -54,74 +54,55 @@ public sealed class CompositionService
     }
 
     /// <summary>
-    /// Renders one element's printable content, always at <c>noCut: false</c> regardless of what
-    /// its own tab defaults to standalone - Text, Barcode and 2D come out 30 dots tall, Draw is
-    /// already 30, Image content is already padded to 32; <see cref="IRenderHelper.ComposeElementImages"/>
-    /// pads the 30-tall ones so they all line up.
+    /// One element as a part of a <see cref="ComposedLabel"/> - which lays every part out at the
+    /// printable head height, whatever its own tab defaults to standalone, so they all line up.
+    /// Draw and Image elements are already print-sized content and are composed as-is.
     /// </summary>
-    public byte[] RenderElementImage(TextHistoryParams? text, BarcodeHistoryParams? barcode, QrHistoryParams? qr, DrawHistoryParams? draw, ImageHistoryParams? image)
+    public static Label ToLabel(TextHistoryParams? text, BarcodeHistoryParams? barcode, QrHistoryParams? qr, DrawHistoryParams? draw, ImageHistoryParams? image)
     {
-        if (text is { } rawT)
+        // TextHistoryParams.ToLabel also migrates a composition staged before independently-
+        // toggleable Bold/Italic existed, the same way TextTabViewModel does for its own history.
+        if (text != null)
         {
-            // A composition staged before independently-toggleable Bold/Italic existed may still
-            // carry the old "Bold"/"Italic" Style values - migrate the same way TextTabViewModel
-            // does for its own history.
-            var t = rawT.WithLegacyStyleMigrated();
-            // Mirrors TextTabViewModel.ComposedText/Line2Enabled - a second line only makes sense
-            // with a size/style that leaves room for it.
-            bool line2Enabled = t.Style != nameof(LetraHelper.TextStyle.Vertical) && t.Size != "L" && t.Size != "XL";
-            string composedText = line2Enabled && !string.IsNullOrEmpty(t.Line2) ? t.Line1 + Environment.NewLine + t.Line2 : t.Line1;
-            return _render.RenderTextContentImage(
-                composedText,
-                t.FontFamily ?? "Arial",
-                Enum.Parse<LetraHelper.LabelTextSize>(t.Size),
-                Enum.Parse<LetraHelper.TextStyle>(t.Style),
-                t.UpperCase,
-                (float)t.WidthScale,
-                Enum.Parse<LetraHelper.TextBoxStyle>(t.BoxStyle),
-                Enum.Parse<LetraHelper.TextAlign>(t.Align),
-                noCut: false,
-                t.Formatting,
-                t.FrameSpacing);
+            return text.ToLabel(edgeToEdge: false);
         }
 
-        if (barcode is { } b)
+        if (barcode != null)
         {
-            return _render.RenderBarcodeContentImage(b.Data, b.ParsedSymbology, b.ToCaption(), noCut: false);
+            return barcode.ToLabel();
         }
 
-        if (qr is { } q)
+        if (qr != null)
         {
-            return _render.RenderTwoDContentImage(q.Data, q.ParsedSymbology);
+            return qr.ToLabel();
         }
 
-        if (draw is { } d)
+        if (draw != null)
         {
-            return d.Png;
+            return draw.ToLabel();
         }
 
-        if (image is { } i)
+        if (image != null)
         {
-            return i.ContentPng;
+            return image.ToLabel();
         }
 
         throw new InvalidOperationException("This element has no renderable content.");
     }
 
-    public byte[] RenderElementImage(ComposeElement element) =>
-        RenderElementImage(element.TextParams, element.BarcodeParams, element.QrParams, element.DrawParams, element.ImageParams);
+    public static Label ToLabel(ComposeElement element) =>
+        ToLabel(element.TextParams, element.BarcodeParams, element.QrParams, element.DrawParams, element.ImageParams);
 
     /// <summary>
-    /// A staged element's thumbnail, built through the same compose path as the final print (see
-    /// <see cref="IRenderHelper.PreviewComposedImage"/>) so it matches what actually gets printed
-    /// for every element type, whether it's 30 or 32 dots tall.
+    /// A staged element's thumbnail, built through the same compose path as the final print so it
+    /// matches what actually gets printed for every element type.
     /// </summary>
-    public byte[] RenderThumbnail(byte[] elementContentPng) => _render.PreviewComposedImage(new[] { elementContentPng });
+    public byte[] RenderThumbnail(Label part) => _printing.RenderPreview(new ComposedLabel(new[] { part }));
 
     /// <summary>Renders the element's content and thumbnail, then appends it to the end of the staged list.</summary>
     public void Stage(ComposeElementKind kind, string summary, TextHistoryParams? text = null, BarcodeHistoryParams? barcode = null, QrHistoryParams? qr = null, DrawHistoryParams? draw = null, ImageHistoryParams? image = null)
     {
-        var thumbnail = RenderThumbnail(RenderElementImage(text, barcode, qr, draw, image));
+        var thumbnail = RenderThumbnail(ToLabel(text, barcode, qr, draw, image));
         Add(new ComposeElement(Guid.NewGuid(), kind, summary, thumbnail, text, barcode, qr, draw, image));
     }
 

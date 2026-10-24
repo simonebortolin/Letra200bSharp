@@ -1,40 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Printer-agnostic core: the label model, the driver contract every printer implements,
+       and the AddLetra() builder/entrypoint. No rendering engine or transport lives here -
+       those come with each driver package (see Letra200bSharp.Dymo). -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0-windows10.0.19041;net10.0-android;net10.0</TargetFrameworks>
+    <!-- Plural, even with a single target, so CI's -p:TargetFrameworks=... override applies here too. -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Self-explanatory members (enum values, simple properties) stay undocumented. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Resources\Strings.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SkiaSharp" />
-    <PackageReference Include="InTheHand.BluetoothLE" />
-    <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
-         Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly (version
-         centralized in Directory.Packages.props) - needs to stay a real PackageReference
-         here, not just a Directory.Packages.props entry, since only a direct reference
-         actually wins over the transitive one during version resolution. -->
-    <PackageReference Include="Tmds.DBus" Condition="'$(TargetFramework)' == 'net10.0'" />
-    <!-- 2D symbology encoding (QR, Micro QR, rMQR, Data Matrix) plus every 1D symbology the
-         Barcode tab exposes - see LetraHelper. Replaced ZXing.Net, which had no Micro QR /
-         rMQR encoders and a much larger footprint. CodeGlyphX is pure-managed with zero
-         dependencies on net10.0. -->
-    <PackageReference Include="CodeGlyphX" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Resources\Strings.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Strings.resx</DependentUpon>
-    </Compile>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
 </Project>

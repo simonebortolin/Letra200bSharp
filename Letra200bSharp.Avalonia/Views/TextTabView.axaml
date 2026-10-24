@@ -82,7 +82,7 @@
                     <NumericUpDown Value="{Binding FrameRight}" Minimum="-20" Maximum="20" Increment="1" FormatString="0" Width="90" Margin="0,0,16,10" />
                 </WrapPanel>
 
-                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                <!-- Fixed height matching the renderer's preview baked-in nearest-neighbor
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
                      stretched; only the (possibly long) length axis scrolls. -->
                 <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">

@@ -6,15 +6,25 @@ using System.Linq;
 using CodeGlyphX;
 using CodeGlyphX.DataMatrix;
 using CodeGlyphX.UpcE;
+using Letra200bSharp;
 
-namespace Letra200bSharp
+namespace Letra200bSharp.Dymo
 {
     /// <summary>
-    /// Turns label content into pixels - see <see cref="IRenderHelper"/> for the contract and why
-    /// this is kept separate from <see cref="LetraHelper"/>'s BLE wire-protocol concerns.
+    /// Turns LetraTag 200B label content into pixels: a 32-dot head whose first and last dot rows
+    /// don't reliably print, with head-axis dots twice the physical size of feed-axis dots. Kept
+    /// separate from <see cref="LetraTagProtocol"/>'s BLE wire-format concerns, and exposed to
+    /// callers only through <see cref="LetraTagLabelRenderer"/>.
     /// </summary>
-    public class RenderHelper : IRenderHelper
+    internal sealed class RenderHelper
     {
+        private readonly string _defaultFontFamily;
+
+        public RenderHelper(string defaultFontFamily = "Arial")
+        {
+            _defaultFontFamily = defaultFontFamily;
+        }
+
         /// <summary>
         /// Minimum luma distance between Otsu's two cluster means for the split to count as real
         /// content - below it the image is treated as uniform. Well under a yellow-on-white logo's
@@ -233,7 +243,7 @@ namespace Letra200bSharp
         /// <summary>
         /// Prepare image by converting the printed bitmap (see <see cref="PrepareBitmap"/>)
         /// into an array of 1s and 0s. Public (rather than kept private) so
-        /// <see cref="ILetraHelper.CreateJob(byte[], bool, bool)"/> can pack the result into a job.
+        /// <see cref="LetraTagLabelRenderer.Render"/> can pack the result into a job.
         /// </summary>
         /// <param name="imageBytes"></param>
         /// <param name="noCut">See <see cref="PrepareBitmap"/>.</param>
@@ -261,7 +271,7 @@ namespace Letra200bSharp
         /// <summary>
         /// Renders a PNG preview of what will be printed on the label, built directly from
         /// the same bit array (<see cref="ImageInfo.Data"/>) packed by
-        /// <see cref="LetraHelper.CreateJob(byte[], bool, bool)"/>: a black pixel is exactly a dot
+        /// <c>CreateJob</c>: a black pixel is exactly a dot
         /// that is sent to the printer as "print". Regardless of <paramref name="noCut"/>, the
         /// printer's first and last pixel row are never actually printed, so those two rows
         /// are always rendered as a distinct gray marker instead of their raw bit value, to
@@ -360,15 +370,15 @@ namespace Letra200bSharp
         }
 
         /// <summary>How far a narrower element sits from a wider one's left edge, as a fraction of the leftover space - 0 for Left, 0.5 for Center, 1 for Right.</summary>
-        private float AlignFactor(LetraHelper.TextAlign align) => align switch
+        private float AlignFactor(TextAlign align) => align switch
         {
-            LetraHelper.TextAlign.Center => 0.5f,
-            LetraHelper.TextAlign.Right => 1f,
+            TextAlign.Center => 0.5f,
+            TextAlign.Right => 1f,
             _ => 0f
         };
 
         /// <summary>Width, in millimeters, of one DIN rail mounting module (EN 50022 terminal block pitch).</summary>
-        public const float DinRailModuleWidthMm = 18f;
+        public const float DinRailModuleWidthMm = DinRailLabel.ModuleWidthMm;
 
         /// <summary>
         /// Feed-axis (label length) pixel pitch, in pixels per millimeter. Empirically
@@ -382,7 +392,7 @@ namespace Letra200bSharp
         ///   18.5 mm instead of the intended 18 mm - i.e. the real pitch is 18.5/231 mm/px, so
         ///   the correct px/mm is its reciprocal, 231/18.5 = 462/37.
         /// </summary>
-        private const float FeedAxisPixelsPerMm = 462f / 37f;
+        internal const float FeedAxisPixelsPerMm = 462f / 37f;
 
         /// <summary>Physical printed length, in millimeters, of a DIN rail label spanning <paramref name="modules"/> modules.</summary>
         public float DinRailLengthMm(decimal modules) => (float)modules * DinRailModuleWidthMm;
@@ -418,7 +428,7 @@ namespace Letra200bSharp
         /// one long word that can't be split, or wrapping not being enough on its own) - callers
         /// scale the whole image down uniformly afterward if needed (see <see cref="RenderDinRailRowImage"/>),
         /// which is what keeps the 1:1 aspect ratio intact instead of stretching only the width.
-        /// Renders at <see cref="LetraHelper.LabelTextSize.XL"/> (edge-to-edge, no blank margin
+        /// Renders at <c>LabelTextSize.XL</c> (edge-to-edge, no blank margin
         /// around the glyphs) rather than the Text tab's usual size presets - the padding ratio
         /// doesn't change how wide the natural rendering ends up (it scales height and width the
         /// same way, so it cancels out once everything is fit to the target height), but it does
@@ -428,7 +438,7 @@ namespace Letra200bSharp
         /// already carve out their own small gap - see <see cref="DinRailSeparatorWidthPx"/>). A
         /// blank/whitespace-only row (used as a spacer) renders as a minimal blank image.
         /// </summary>
-        private byte[] RenderDinRailSegmentNatural(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, int wrapTargetWidthPx, bool noCut, LetraHelper.TextFormatting formatting = default)
+        private byte[] RenderDinRailSegmentNatural(string text, string fontFamily, TextStyle style, bool upperCase, TextAlign align, int wrapTargetWidthPx, bool noCut, TextFormatting formatting = default)
         {
             int targetHeight = noCut ? 32 : 30;
 
@@ -449,7 +459,7 @@ namespace Letra200bSharp
                 }
             }
 
-            byte[] oneLineImage = RenderTextContentImage(text, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut, formatting);
+            byte[] oneLineImage = RenderTextContentImage(text, fontFamily, LabelTextSize.XL, style, upperCase, 1f, TextBoxStyle.None, align, noCut, formatting);
             if (!text.Contains(' '))
             {
                 return oneLineImage;
@@ -474,7 +484,7 @@ namespace Letra200bSharp
                 }
 
                 string candidate = text.Substring(0, i) + "\n" + text.Substring(i + 1);
-                byte[] candidateImage = RenderTextContentImage(candidate, fontFamily, LetraHelper.LabelTextSize.XL, style, upperCase, 1f, LetraHelper.TextBoxStyle.None, align, noCut, formatting);
+                byte[] candidateImage = RenderTextContentImage(candidate, fontFamily, LabelTextSize.XL, style, upperCase, 1f, TextBoxStyle.None, align, noCut, formatting);
                 int candidateWidth = DecodeWidth(candidateImage);
                 if (candidateWidth < bestWidth)
                 {
@@ -495,7 +505,7 @@ namespace Letra200bSharp
         /// rendering pipeline, so it ignores the couple of pixels a separator line would carve
         /// out of the segment.
         /// </summary>
-        public float DinRailRequiredScale(string text, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, decimal modules, bool noCut = false, LetraHelper.TextFormatting formatting = default)
+        public float DinRailRequiredScale(string text, string fontFamily, TextStyle style, bool upperCase, TextAlign align, decimal modules, bool noCut = false, TextFormatting formatting = default)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -517,15 +527,15 @@ namespace Letra200bSharp
         /// drawn left to right into one bitmap. Each row's text is rendered at its natural,
         /// undistorted size (see <see cref="RenderDinRailSegmentNatural"/>) and then, only if it
         /// doesn't already fit, scaled down - uniformly in both directions, never stretched - by
-        /// whatever factor <paramref name="sizing"/> calls for (see <see cref="LetraHelper.DinRailSizing"/>),
+        /// whatever factor <paramref name="sizing"/> calls for (see <c>DinRailSizing</c>),
         /// then centered vertically and aligned horizontally (<paramref name="align"/>) within its
         /// segment. When <paramref name="showSeparators"/> is set, a thin vertical line is printed
         /// at the boundary between each pair of adjacent segments, carved out of the earlier
         /// segment's own available width rather than added on top of it, so segment widths always
         /// still sum to the requested total physical length. Public (rather than kept private) so
-        /// <see cref="ILetraHelper.CreateDinRailRowJob"/> can build a job from it.
+        /// <see cref="LetraTagLabelRenderer.Render"/> can build a job from it.
         /// </summary>
-        public byte[] RenderDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut, LetraHelper.TextFormatting formatting = default)
+        public byte[] RenderDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut, TextFormatting formatting = default)
         {
             int targetHeight = noCut ? 32 : 30;
             float alignFactor = AlignFactor(align);
@@ -555,7 +565,7 @@ namespace Letra200bSharp
             {
                 for (int i = 0; i < rows.Count; i++)
                 {
-                    float scale = sizing == LetraHelper.DinRailSizing.Uniform ? uniformScale : requiredScales[i];
+                    float scale = sizing == DinRailSizing.Uniform ? uniformScale : requiredScales[i];
                     bool drawSeparatorAfter = showSeparators && i < rows.Count - 1;
 
                     var segmentBitmap = new SKBitmap(segmentWidths[i], targetHeight);
@@ -619,25 +629,25 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="ILetraHelper.CreateDinRailRowJob"/> would
+        /// Renders a PNG preview of what <see cref="LetraTagLabelRenderer.Render"/> would
         /// print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered label</returns>
-        public byte[] PreviewDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, LetraHelper.TextStyle style, bool upperCase, LetraHelper.TextAlign align, LetraHelper.DinRailSizing sizing, bool showSeparators, bool noCut = false, LetraHelper.TextFormatting formatting = default)
+        public byte[] PreviewDinRailRowImage(IReadOnlyList<(string Text, decimal Modules)> rows, string fontFamily, TextStyle style, bool upperCase, TextAlign align, DinRailSizing sizing, bool showSeparators, bool noCut = false, TextFormatting formatting = default)
         {
             byte[] imageBytes = RenderDinRailRowImage(rows, fontFamily, style, upperCase, align, sizing, showSeparators, noCut, formatting);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
 
-        private float GetPaddingRatio(LetraHelper.LabelTextSize size)
+        private float GetPaddingRatio(LabelTextSize size)
         {
             switch (size)
             {
-                case LetraHelper.LabelTextSize.XS: return 0.6f;
-                case LetraHelper.LabelTextSize.S: return 0.35f;
-                case LetraHelper.LabelTextSize.M: return 0.15f;
-                case LetraHelper.LabelTextSize.L: return 0.05f;
-                case LetraHelper.LabelTextSize.XL: return 0f;
+                case LabelTextSize.XS: return 0.6f;
+                case LabelTextSize.S: return 0.35f;
+                case LabelTextSize.M: return 0.15f;
+                case LabelTextSize.L: return 0.05f;
+                case LabelTextSize.XL: return 0f;
                 default: return 0.15f;
             }
         }
@@ -647,15 +657,15 @@ namespace Letra200bSharp
         /// two-line case: how much of the fixed height each of the two lines gets once the
         /// gap between them (see <see cref="RenderTextContentImage"/>) is subtracted out.
         /// </summary>
-        private int GetTwoLineHeight(LetraHelper.LabelTextSize size)
+        private int GetTwoLineHeight(LabelTextSize size)
         {
             switch (size)
             {
-                case LetraHelper.LabelTextSize.XS: return 12;
-                case LetraHelper.LabelTextSize.S: return 13;
-                case LetraHelper.LabelTextSize.M: return 14;
-                case LetraHelper.LabelTextSize.L: return 15;
-                case LetraHelper.LabelTextSize.XL: return 15;
+                case LabelTextSize.XS: return 12;
+                case LabelTextSize.S: return 13;
+                case LabelTextSize.M: return 14;
+                case LabelTextSize.L: return 15;
+                case LabelTextSize.XL: return 15;
                 default: return 14;
             }
         }
@@ -668,14 +678,14 @@ namespace Letra200bSharp
         /// content" renderer for a Text-tab-style Compose element (see <see cref="ComposeElementImages"/>).
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered label</returns>
-        public byte[] RenderTextContentImage(string text, string fontFamily, LetraHelper.LabelTextSize size, LetraHelper.TextStyle style, bool upperCase, float widthScale, LetraHelper.TextBoxStyle boxStyle, LetraHelper.TextAlign align, bool noCut, LetraHelper.TextFormatting formatting = default, LetraHelper.FrameSpacing frameSpacing = default)
+        public byte[] RenderTextContentImage(string text, string fontFamily, LabelTextSize size, TextStyle style, bool upperCase, float widthScale, TextBoxStyle boxStyle, TextAlign align, bool noCut, TextFormatting formatting = default, FrameSpacing frameSpacing = default)
         {
             if (upperCase)
             {
                 text = text.ToUpperInvariant();
             }
 
-            bool rotate90 = style == LetraHelper.TextStyle.Vertical;
+            bool rotate90 = style == TextStyle.Vertical;
             if (rotate90)
             {
                 text = string.Join(Environment.NewLine, text.ToCharArray());
@@ -685,7 +695,7 @@ namespace Letra200bSharp
 
             const float renderFontSize = 96;
             int targetHeight = noCut ? 32 : 30;
-            // Bold/Italic are independently toggleable (see LetraHelper.TextFormatting) and
+            // Bold/Italic are independently toggleable (see TextFormatting) and
             // combine freely with each other and with style's Outline/Shadow/Vertical - SkiaSharp
             // already supports a BoldItalic weight/slant combination directly.
             var fontStyle = new SKFontStyle(
@@ -710,13 +720,13 @@ namespace Letra200bSharp
             // Outline flips to Stroke-only) - a dedicated always-Fill paint keeps them solid.
             using (var linePaint = new SKPaint { Color = SKColors.Black, IsAntialias = false, Style = SKPaintStyle.Fill })
             {
-                if (style == LetraHelper.TextStyle.Outline)
+                if (style == TextStyle.Outline)
                 {
                     paint.Style = SKPaintStyle.Stroke;
                     paint.StrokeWidth = renderFontSize * 0.06f;
                 }
 
-                float shadowOffset = style == LetraHelper.TextStyle.Shadow ? renderFontSize * 0.08f : 0f;
+                float shadowOffset = style == TextStyle.Shadow ? renderFontSize * 0.08f : 0f;
 
                 font.GetFontMetrics(out SKFontMetrics metrics);
                 float ascent = -metrics.Ascent;
@@ -789,7 +799,7 @@ namespace Letra200bSharp
                 {
                     int targetPerLine = GetTwoLineHeight(size);
                     int targetGapPixels = Math.Clamp(targetHeight - 2 * targetPerLine, 0, targetHeight - 1);
-                    if (size == LetraHelper.LabelTextSize.XL)
+                    if (size == LabelTextSize.XL)
                     {
                         // XL is the size DIN Rail's auto-wrap always renders at (see
                         // RenderDinRailSegmentNatural) - its gap felt too roomy there, so pin it
@@ -900,7 +910,7 @@ namespace Letra200bSharp
                             }
                         }
 
-                        if (boxStyle != LetraHelper.TextBoxStyle.None)
+                        if (boxStyle != TextBoxStyle.None)
                         {
                             // Aim for a border that's still ~1.5px wide once this raw canvas
                             // gets scaled down to targetHeight.
@@ -917,11 +927,13 @@ namespace Letra200bSharp
                             // resize below applies).
                             float perDotY = bitmap.Height / (float)targetHeight;
                             float perDotX = perDotY * 2f;
-                            var scaledFrameSpacing = new LetraHelper.FrameSpacing(
-                                (int)MathF.Round(frameSpacing.Top * perDotY),
-                                (int)MathF.Round(frameSpacing.Bottom * perDotY),
-                                (int)MathF.Round(frameSpacing.Left * perDotX),
-                                (int)MathF.Round(frameSpacing.Right * perDotX));
+                            var scaledFrameSpacing = new FrameSpacing
+                            {
+                                Top = (int)MathF.Round(frameSpacing.Top * perDotY),
+                                Bottom = (int)MathF.Round(frameSpacing.Bottom * perDotY),
+                                Left = (int)MathF.Round(frameSpacing.Left * perDotX),
+                                Right = (int)MathF.Round(frameSpacing.Right * perDotX)
+                            };
                             DrawTextBox(canvas, boxStyle, bitmap.Width, bitmap.Height, borderStrokeWidth, verticalMargin, scaledFrameSpacing);
                         }
                     }
@@ -968,7 +980,7 @@ namespace Letra200bSharp
         }
 
         /// <summary>Draws a decorative border/underline around the full rendered text canvas.</summary>
-        private void DrawTextBox(SKCanvas canvas, LetraHelper.TextBoxStyle boxStyle, float width, float height, float strokeWidth, float verticalMargin, LetraHelper.FrameSpacing frameSpacing = default)
+        private void DrawTextBox(SKCanvas canvas, TextBoxStyle boxStyle, float width, float height, float strokeWidth, float verticalMargin, FrameSpacing frameSpacing = default)
         {
             using (var borderPaint = new SKPaint { Color = SKColors.Black, IsAntialias = false, Style = SKPaintStyle.Stroke, StrokeWidth = strokeWidth })
             {
@@ -988,35 +1000,35 @@ namespace Letra200bSharp
 
                 switch (boxStyle)
                 {
-                    case LetraHelper.TextBoxStyle.Underline:
+                    case TextBoxStyle.Underline:
                         canvas.DrawLine(rect.Left, rect.Bottom, rect.Right, rect.Bottom, borderPaint);
                         break;
-                    case LetraHelper.TextBoxStyle.Square:
+                    case TextBoxStyle.Square:
                         canvas.DrawRect(rect, borderPaint);
                         break;
-                    case LetraHelper.TextBoxStyle.Rounded:
+                    case TextBoxStyle.Rounded:
                         float radius = rect.Height * 0.35f;
                         canvas.DrawRoundRect(rect, radius, radius, borderPaint);
                         break;
-                    case LetraHelper.TextBoxStyle.Pointed:
+                    case TextBoxStyle.Pointed:
                         DrawPointedBox(canvas, borderPaint, rect);
                         break;
-                    case LetraHelper.TextBoxStyle.Edged:
+                    case TextBoxStyle.Edged:
                         DrawZigzagBox(canvas, borderPaint, rect, toothSpan: rect.Height * 0.7f, amplitude: rect.Height * 0.12f);
                         break;
-                    case LetraHelper.TextBoxStyle.Crocodile:
+                    case TextBoxStyle.Crocodile:
                         DrawZigzagBox(canvas, borderPaint, rect, toothSpan: rect.Height, amplitude: rect.Height * 0.3f);
                         break;
-                    case LetraHelper.TextBoxStyle.Heart:
+                    case TextBoxStyle.Heart:
                         DrawHeartBox(canvas, borderPaint, rect);
                         break;
-                    case LetraHelper.TextBoxStyle.Star:
+                    case TextBoxStyle.Star:
                         DrawPerimeterSpikeBox(canvas, borderPaint, rect, spikeSpan: Math.Max(rect.Height * 0.6f, 1f), amplitude: Math.Min(rect.Width, rect.Height) * 0.14f);
                         break;
-                    case LetraHelper.TextBoxStyle.Flower:
+                    case TextBoxStyle.Flower:
                         DrawPerimeterSpikeBox(canvas, borderPaint, rect, spikeSpan: Math.Max(rect.Height * 0.28f, 1f), amplitude: Math.Min(rect.Width, rect.Height) * 0.05f);
                         break;
-                    case LetraHelper.TextBoxStyle.Ribbon:
+                    case TextBoxStyle.Ribbon:
                         DrawRibbonBox(canvas, borderPaint, rect);
                         break;
                 }
@@ -1185,22 +1197,22 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Maps our curated <see cref="LetraHelper.BarcodeSymbology"/> to CodeGlyphX's
-        /// <see cref="BarcodeType"/>. Both <see cref="LetraHelper.BarcodeSymbology.Ean13"/> and
-        /// <see cref="LetraHelper.BarcodeSymbology.Ean8"/> map to <see cref="BarcodeType.EAN"/> -
+        /// Maps our curated <c>BarcodeSymbology</c> to CodeGlyphX's
+        /// <see cref="BarcodeType"/>. Both <c>BarcodeSymbology.Ean13</c> and
+        /// <c>BarcodeSymbology.Ean8</c> map to <see cref="BarcodeType.EAN"/> -
         /// CodeGlyphX's EAN encoder picks 8 vs 13 from the digit count, and
         /// <see cref="ResolveAutoSymbology"/>/the encoder itself already validate that.
         /// </summary>
-        private BarcodeType ToCodeGlyphXType(LetraHelper.BarcodeSymbology symbology) => symbology switch
+        private BarcodeType ToCodeGlyphXType(BarcodeSymbology symbology) => symbology switch
         {
-            LetraHelper.BarcodeSymbology.Code128 => BarcodeType.Code128,
-            LetraHelper.BarcodeSymbology.Code39 => BarcodeType.Code39,
-            LetraHelper.BarcodeSymbology.Codabar => BarcodeType.Codabar,
-            LetraHelper.BarcodeSymbology.Itf => BarcodeType.ITF,
-            LetraHelper.BarcodeSymbology.Ean13 => BarcodeType.EAN,
-            LetraHelper.BarcodeSymbology.Ean8 => BarcodeType.EAN,
-            LetraHelper.BarcodeSymbology.UpcA => BarcodeType.UPCA,
-            LetraHelper.BarcodeSymbology.UpcE => BarcodeType.UPCE,
+            BarcodeSymbology.Code128 => BarcodeType.Code128,
+            BarcodeSymbology.Code39 => BarcodeType.Code39,
+            BarcodeSymbology.Codabar => BarcodeType.Codabar,
+            BarcodeSymbology.Itf => BarcodeType.ITF,
+            BarcodeSymbology.Ean13 => BarcodeType.EAN,
+            BarcodeSymbology.Ean8 => BarcodeType.EAN,
+            BarcodeSymbology.UpcA => BarcodeType.UPCA,
+            BarcodeSymbology.UpcE => BarcodeType.UPCE,
             _ => throw new ArgumentOutOfRangeException(nameof(symbology))
         };
 
@@ -1279,7 +1291,7 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Resolves <see cref="LetraHelper.BarcodeSymbology.Auto"/> to a concrete symbology based
+        /// Resolves <c>BarcodeSymbology.Auto</c> to a concrete symbology based
         /// on <paramref name="data"/>'s shape: digits-only data whose length exactly matches a
         /// checksum-carrying symbology (Ean13/UpcA/Ean8/UpcE, checked narrowest-length-first) and
         /// whose check digit validates picks that symbology; other digits-only data falls back to
@@ -1287,17 +1299,17 @@ namespace Letra200bSharp
         /// if every character fits its charset, else Code128 - same fallback ZXing's own encoder
         /// would need since Code128 accepts the full ASCII range.
         /// </summary>
-        private LetraHelper.BarcodeSymbology ResolveAutoSymbology(string data)
+        private BarcodeSymbology ResolveAutoSymbology(string data)
         {
             if (string.IsNullOrEmpty(data))
-                return LetraHelper.BarcodeSymbology.Code128;
+                return BarcodeSymbology.Code128;
 
             if (data.All(char.IsDigit))
             {
                 if (data.Length == 13 && HasValidMod10Checksum(data))
-                    return LetraHelper.BarcodeSymbology.Ean13;
+                    return BarcodeSymbology.Ean13;
                 if (data.Length == 12 && HasValidMod10Checksum(data))
-                    return LetraHelper.BarcodeSymbology.UpcA;
+                    return BarcodeSymbology.UpcA;
                 // UpcE checked before Ean8: an 8-digit code starting 2-9 can only be Ean8 (UpcE's
                 // number-system digit is restricted to 0/1, enforced by TryExpandUpcEToUpcA's own
                 // guard), so this ordering doesn't change anything for those. One starting 0/1
@@ -1308,18 +1320,18 @@ namespace Letra200bSharp
                 // range is by definition for a single company's internal use and not something a
                 // generic label-printing tool would plausibly be asked to auto-detect.
                 if (data.Length == 8 && TryExpandUpcEToUpcA(data, out var expanded) && HasValidMod10Checksum(expanded))
-                    return LetraHelper.BarcodeSymbology.UpcE;
+                    return BarcodeSymbology.UpcE;
                 if (data.Length == 8 && HasValidMod10Checksum(data))
-                    return LetraHelper.BarcodeSymbology.Ean8;
+                    return BarcodeSymbology.Ean8;
 
-                return data.Length % 2 == 0 ? LetraHelper.BarcodeSymbology.Itf : LetraHelper.BarcodeSymbology.Code128;
+                return data.Length % 2 == 0 ? BarcodeSymbology.Itf : BarcodeSymbology.Code128;
             }
 
             const string code39Charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%";
             if (data.All(c => code39Charset.Contains(char.ToUpperInvariant(c))))
-                return LetraHelper.BarcodeSymbology.Code39;
+                return BarcodeSymbology.Code39;
 
-            return LetraHelper.BarcodeSymbology.Code128;
+            return BarcodeSymbology.Code128;
         }
 
         /// <summary>
@@ -1330,12 +1342,12 @@ namespace Letra200bSharp
         /// </summary>
         private const int BarcodeModuleScale = 4;
 
-        /// <summary>Fraction of the printable height given to an enabled caption (see <see cref="LetraHelper.CaptionOptions"/>) - kept small by default since the bars are the actual scannable payload and the caption is just a human-readable aid; the rest of the height goes to the bars themselves.</summary>
-        private float GetCaptionHeightRatio(LetraHelper.CaptionSize size) => size switch
+        /// <summary>Fraction of the printable height given to an enabled caption (see <c>CaptionOptions</c>) - kept small by default since the bars are the actual scannable payload and the caption is just a human-readable aid; the rest of the height goes to the bars themselves.</summary>
+        private float GetCaptionHeightRatio(CaptionSize size) => size switch
         {
-            LetraHelper.CaptionSize.S => 0.15f,
-            LetraHelper.CaptionSize.M => 0.2f,
-            LetraHelper.CaptionSize.L => 0.3f,
+            CaptionSize.S => 0.15f,
+            CaptionSize.M => 0.2f,
+            CaptionSize.L => 0.3f,
             _ => 0.2f
         };
 
@@ -1348,7 +1360,7 @@ namespace Letra200bSharp
         /// <summary>
         /// Renders <paramref name="data"/> at the smallest legible height, bold, in
         /// <paramref name="fontFamily"/> - the caption printed alongside the bars when
-        /// <see cref="RenderBarcodeContentImage"/>'s <c>caption</c> isn't <see cref="LetraHelper.CaptionPosition.None"/>.
+        /// <see cref="RenderBarcodeContentImage"/>'s <c>caption</c> isn't <c>CaptionPosition.None</c>.
         /// </summary>
         /// <param name="numberHeight">Final pixel height of the caption (see <see cref="GetCaptionHeightRatio"/>).</param>
         private SKBitmap RenderBarcodeNumberBitmap(string data, string fontFamily, int numberHeight)
@@ -1358,7 +1370,7 @@ namespace Letra200bSharp
             // a whole to the small height actually reserved for it, same trick
             // RenderDinRailSegmentNatural uses: keeps the digits' proportions correct instead of
             // asking SkiaSharp's font layout to work at a height too small to be meaningful.
-            byte[] fullHeightPng = RenderTextContentImage(data, fontFamily, LetraHelper.LabelTextSize.XL, LetraHelper.TextStyle.Normal, upperCase: false, widthScale: 1f, LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign.Center, noCut: false, formatting: new LetraHelper.TextFormatting(Bold: true));
+            byte[] fullHeightPng = RenderTextContentImage(data, fontFamily, LabelTextSize.XL, TextStyle.Normal, upperCase: false, widthScale: 1f, TextBoxStyle.None, TextAlign.Center, noCut: false, formatting: new TextFormatting { Bold = true });
             using (var fullHeightBitmap = SKBitmap.Decode(fullHeightPng))
             {
                 int width = Math.Max(1, (int)MathF.Round(fullHeightBitmap.Width * (numberHeight / (float)fullHeightBitmap.Height)));
@@ -1379,18 +1391,18 @@ namespace Letra200bSharp
         /// </param>
         /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/> (e.g. non-numeric EAN/UPC data, or the wrong digit count).</exception>
         /// <returns>PNG-encoded bytes of the rendered barcode</returns>
-        public byte[] RenderBarcodeContentImage(string data, LetraHelper.BarcodeSymbology symbology, LetraHelper.CaptionOptions caption, bool noCut)
+        public byte[] RenderBarcodeContentImage(string data, BarcodeSymbology symbology, CaptionOptions caption, bool noCut)
         {
-            LetraHelper.BarcodeSymbology resolvedSymbology = symbology == LetraHelper.BarcodeSymbology.Auto ? ResolveAutoSymbology(data) : symbology;
+            BarcodeSymbology resolvedSymbology = symbology == BarcodeSymbology.Auto ? ResolveAutoSymbology(data) : symbology;
             int targetHeight = noCut ? 32 : 30;
-            bool showCaption = caption.Position != LetraHelper.CaptionPosition.None;
+            bool showCaption = caption.Position != CaptionPosition.None;
             // How tall a notch to leave for the caption, once its column range is known below -
             // not a height the bars themselves are ever encoded/resized to (see below: bars
             // always render at the full targetHeight; only the width directly under the caption
             // gets cut down to make room for it, everywhere else stays full height). The notch
             // sits at the top edge for Above, the bottom edge for Below.
             int captionHeight = showCaption ? Math.Max(4, (int)MathF.Round(targetHeight * GetCaptionHeightRatio(caption.Size))) : 0;
-            int notchStartY = caption.Position == LetraHelper.CaptionPosition.Above ? 0 : targetHeight - captionHeight;
+            int notchStartY = caption.Position == CaptionPosition.Above ? 0 : targetHeight - captionHeight;
 
             Barcode1D barcode;
             try
@@ -1401,13 +1413,13 @@ namespace Letra200bSharp
                 // up ourselves below via a crisp nearest-neighbor resize, matching the rest of
                 // this file's approach to keeping bars/edges sharp, rather than letting the
                 // library rasterize it.
-                barcode = resolvedSymbology == LetraHelper.BarcodeSymbology.UpcE
+                barcode = resolvedSymbology == BarcodeSymbology.UpcE
                     ? EncodeUpcE(data)
                     : BarcodeEncoder.Encode(ToCodeGlyphXType(resolvedSymbology), data);
             }
             catch (Exception ex)
             {
-                throw new ArgumentException($"'{data}' isn't valid {(symbology == LetraHelper.BarcodeSymbology.Auto ? $"{resolvedSymbology} (auto-detected)" : symbology.ToString())} barcode data: {ex.Message}", nameof(data), ex);
+                throw new ArgumentException($"'{data}' isn't valid {(symbology == BarcodeSymbology.Auto ? $"{resolvedSymbology} (auto-detected)" : symbology.ToString())} barcode data: {ex.Message}", nameof(data), ex);
             }
 
             int moduleCount = barcode.TotalModules;
@@ -1448,7 +1460,7 @@ namespace Letra200bSharp
                     int gapHeight = Math.Min(BarcodeNumberGapPx, captionHeight - 1);
                     int textHeight = captionHeight - gapHeight;
 
-                    using (var numberBitmap = RenderBarcodeNumberBitmap(data, caption.FontFamily, textHeight))
+                    using (var numberBitmap = RenderBarcodeNumberBitmap(data, caption.FontFamily ?? _defaultFontFamily, textHeight))
                     {
                         int finalWidth = Math.Max(barsWidth, numberBitmap.Width);
                         // Whichever of the bars/caption is narrower gets lined up against the
@@ -1456,7 +1468,7 @@ namespace Letra200bSharp
                         // rest of the app (e.g. DIN Rail's own AlignFactor usage).
                         float barsX = (finalWidth - barsWidth) * AlignFactor(caption.Align);
                         float numberX = (finalWidth - numberBitmap.Width) * AlignFactor(caption.Align);
-                        float numberY = caption.Position == LetraHelper.CaptionPosition.Above ? notchStartY : notchStartY + gapHeight;
+                        float numberY = caption.Position == CaptionPosition.Above ? notchStartY : notchStartY + gapHeight;
 
                         using (var finalBitmap = new SKBitmap(finalWidth, targetHeight))
                         using (var canvas = new SKCanvas(finalBitmap))
@@ -1486,23 +1498,23 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="ILetraHelper.CreateJob(string, LetraHelper.BarcodeSymbology, bool, LetraHelper.CaptionOptions)"/>
+        /// Renders a PNG preview of what <see cref="LetraTagLabelRenderer.Render"/>
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image</returns>
         /// <exception cref="ArgumentException"><paramref name="data"/> isn't valid for <paramref name="symbology"/>.</exception>
-        public byte[] PreviewImage(string data, LetraHelper.BarcodeSymbology symbology, bool noCut = false, LetraHelper.CaptionOptions caption = default)
+        public byte[] PreviewImage(string data, BarcodeSymbology symbology, bool noCut, CaptionOptions caption)
         {
             byte[] imageBytes = RenderBarcodeContentImage(data, symbology, caption, noCut);
             return PreviewImage(imageBytes, noCut, preRendered: true);
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="ILetraHelper.CreateJob(string, string, LetraHelper.LabelTextSize, LetraHelper.TextStyle, bool, float, LetraHelper.TextBoxStyle, LetraHelper.TextAlign, bool)"/>
+        /// Renders a PNG preview of what <see cref="LetraTagLabelRenderer.Render"/>
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image</returns>
-        public byte[] PreviewImage(string text, string fontFamily = "Arial", LetraHelper.LabelTextSize size = LetraHelper.LabelTextSize.M, LetraHelper.TextStyle style = LetraHelper.TextStyle.Normal, bool upperCase = false, float widthScale = 1f, LetraHelper.TextBoxStyle boxStyle = LetraHelper.TextBoxStyle.None, LetraHelper.TextAlign align = LetraHelper.TextAlign.Left, bool noCut = false, LetraHelper.TextFormatting formatting = default, LetraHelper.FrameSpacing frameSpacing = default)
+        public byte[] PreviewImage(string text, string fontFamily = "Arial", LabelTextSize size = LabelTextSize.M, TextStyle style = TextStyle.Normal, bool upperCase = false, float widthScale = 1f, TextBoxStyle boxStyle = TextBoxStyle.None, TextAlign align = TextAlign.Left, bool noCut = false, TextFormatting formatting = default, FrameSpacing frameSpacing = default)
         {
             byte[] imageBytes = RenderTextContentImage(text, fontFamily, size, style, upperCase, widthScale, boxStyle, align, noCut, formatting, frameSpacing);
             return PreviewImage(imageBytes, noCut, preRendered: true);
@@ -1523,10 +1535,10 @@ namespace Letra200bSharp
         private const int TwoDHeadBudgetPixels = 30;
 
         /// <summary>
-        /// Largest QR version <see cref="LetraHelper.TwoDSymbology.QrCode"/> will encode: V3 is 29
+        /// Largest QR version <c>TwoDSymbology.QrCode</c> will encode: V3 is 29
         /// modules, the most that fit <see cref="TwoDHeadBudgetPixels"/> at 1 dot/module. (QR's
         /// 21-module minimum already rules out 2 dots/module, so every QR here is in the
-        /// <see cref="LetraHelper.TwoDPlan.MayNotScanWell"/> tier.)
+        /// <see cref="TwoDCodePlan.MayNotScanWell"/> tier.)
         /// </summary>
         private const int TwoDMaxQrVersion = 3;
 
@@ -1543,10 +1555,10 @@ namespace Letra200bSharp
 
         /// <summary>
         /// Encodes <paramref name="data"/> as the requested 2D symbology and returns its raw
-        /// module matrix (no quiet zone) plus a display name. <see cref="LetraHelper.TwoDSymbology.Auto"/>
+        /// module matrix (no quiet zone) plus a display name. <c>TwoDSymbology.Auto</c>
         /// is resolved here - see <see cref="EncodeTwoDAuto"/>.
         /// </summary>
-        private (BitMatrix Modules, LetraHelper.TwoDSymbology Resolved, string Name) EncodeTwoD(string data, LetraHelper.TwoDSymbology symbology)
+        private (BitMatrix Modules, TwoDSymbology Resolved, string Name) EncodeTwoD(string data, TwoDSymbology symbology)
         {
             if (string.IsNullOrEmpty(data))
             {
@@ -1555,16 +1567,16 @@ namespace Letra200bSharp
 
             return symbology switch
             {
-                LetraHelper.TwoDSymbology.Auto => EncodeTwoDAuto(data),
-                LetraHelper.TwoDSymbology.QrCode => EncodeQr(data),
-                LetraHelper.TwoDSymbology.MicroQrCode => EncodeMicroQr(data),
-                LetraHelper.TwoDSymbology.RectangularMicroQrCode => EncodeRmQr(data),
-                LetraHelper.TwoDSymbology.DataMatrix => EncodeDataMatrix(data),
+                TwoDSymbology.Auto => EncodeTwoDAuto(data),
+                TwoDSymbology.QrCode => EncodeQr(data),
+                TwoDSymbology.MicroQrCode => EncodeMicroQr(data),
+                TwoDSymbology.RectangularMicroQrCode => EncodeRmQr(data),
+                TwoDSymbology.DataMatrix => EncodeDataMatrix(data),
                 _ => throw new ArgumentOutOfRangeException(nameof(symbology))
             };
         }
 
-        private (BitMatrix, LetraHelper.TwoDSymbology, string) EncodeQr(string data)
+        private (BitMatrix, TwoDSymbology, string) EncodeQr(string data)
         {
             QrCode qr;
             try
@@ -1576,10 +1588,10 @@ namespace Letra200bSharp
                 throw new ArgumentException($"'{data}' doesn't fit a QR code of version {TwoDMaxQrVersion} or lower (the largest that fits this printer): {ex.Message}. Try rMQR or Data Matrix instead.", nameof(data), ex);
             }
 
-            return (qr.Modules, LetraHelper.TwoDSymbology.QrCode, $"QR V{qr.Version}");
+            return (qr.Modules, TwoDSymbology.QrCode, $"QR V{qr.Version}");
         }
 
-        private (BitMatrix, LetraHelper.TwoDSymbology, string) EncodeMicroQr(string data)
+        private (BitMatrix, TwoDSymbology, string) EncodeMicroQr(string data)
         {
             MicroQrCode code;
             try
@@ -1602,10 +1614,10 @@ namespace Letra200bSharp
                 throw new ArgumentException($"'{data}' doesn't fit a Micro QR code (M1-M4): {ex.Message}. Try rMQR or Data Matrix instead.", nameof(data), ex);
             }
 
-            return (code.Modules, LetraHelper.TwoDSymbology.MicroQrCode, $"Micro QR M{code.Version}");
+            return (code.Modules, TwoDSymbology.MicroQrCode, $"Micro QR M{code.Version}");
         }
 
-        private (BitMatrix, LetraHelper.TwoDSymbology, string) EncodeRmQr(string data)
+        private (BitMatrix, TwoDSymbology, string) EncodeRmQr(string data)
         {
             Exception? lastError = null;
             foreach (int maxVersion in TwoDRmQrMaxVersionByHeightBucket)
@@ -1619,7 +1631,7 @@ namespace Letra200bSharp
                         MinimumVersion = 1,
                         MaximumVersion = maxVersion
                     });
-                    return (code.Modules, LetraHelper.TwoDSymbology.RectangularMicroQrCode, $"rMQR {code.VersionName}");
+                    return (code.Modules, TwoDSymbology.RectangularMicroQrCode, $"rMQR {code.VersionName}");
                 }
                 catch (Exception ex)
                 {
@@ -1630,7 +1642,7 @@ namespace Letra200bSharp
             throw new ArgumentException($"'{data}' doesn't fit any rMQR symbol: {lastError?.Message}. Try Data Matrix, or a full QR code.", nameof(data), lastError);
         }
 
-        private (BitMatrix, LetraHelper.TwoDSymbology, string) EncodeDataMatrix(string data)
+        private (BitMatrix, TwoDSymbology, string) EncodeDataMatrix(string data)
         {
             BitMatrix matrix;
             try
@@ -1642,29 +1654,29 @@ namespace Letra200bSharp
                 throw new ArgumentException($"'{data}' can't be encoded as a Data Matrix: {ex.Message}", nameof(data), ex);
             }
 
-            return (matrix, LetraHelper.TwoDSymbology.DataMatrix, $"Data Matrix {matrix.Width}×{matrix.Height}");
+            return (matrix, TwoDSymbology.DataMatrix, $"Data Matrix {matrix.Width}×{matrix.Height}");
         }
 
         /// <summary>
-        /// Resolves <see cref="LetraHelper.TwoDSymbology.Auto"/>: encodes <paramref name="data"/>
+        /// Resolves <c>TwoDSymbology.Auto</c>: encodes <paramref name="data"/>
         /// as rMQR, Micro QR and Data Matrix (never full QR - it's always in the
-        /// <see cref="LetraHelper.TwoDPlan.MayNotScanWell"/> tier here) and returns whichever
+        /// <see cref="TwoDCodePlan.MayNotScanWell"/> tier here) and returns whichever
         /// prints on the least tape (fewest feed-axis dots) while keeping every module at least 2
         /// dots wide. Ties break toward the bigger module, then toward the symbology better suited
         /// to narrow marking (rMQR, then Micro QR, then Data Matrix). If nothing clears the 2-dot
         /// bar, the data is too long - the caller has to pick a symbology explicitly to accept a
         /// smaller, less reliable code.
         /// </summary>
-        private (BitMatrix, LetraHelper.TwoDSymbology, string) EncodeTwoDAuto(string data)
+        private (BitMatrix, TwoDSymbology, string) EncodeTwoDAuto(string data)
         {
-            (Func<(BitMatrix, LetraHelper.TwoDSymbology, string)> Encode, int Preference)[] attempts =
+            (Func<(BitMatrix, TwoDSymbology, string)> Encode, int Preference)[] attempts =
             {
                 (() => EncodeRmQr(data), 0),
                 (() => EncodeMicroQr(data), 1),
                 (() => EncodeDataMatrix(data), 2),
             };
 
-            (BitMatrix Modules, LetraHelper.TwoDSymbology Resolved, string Name, int FeedDots, int Dots, int Preference)? best = null;
+            (BitMatrix Modules, TwoDSymbology Resolved, string Name, int FeedDots, int Dots, int Preference)? best = null;
             var errors = new List<string>();
 
             foreach (var (encode, preference) in attempts)
@@ -1712,7 +1724,7 @@ namespace Letra200bSharp
         /// that, since feed-axis dots are half the physical size, keeping modules square.
         /// </summary>
         /// <exception cref="ArgumentException">The symbol's short side needs more modules than the head axis has dots.</exception>
-        private LetraHelper.TwoDPlan BuildTwoDPlan(BitMatrix modules, LetraHelper.TwoDSymbology resolved, string name)
+        private TwoDCodePlan BuildTwoDPlan(BitMatrix modules, TwoDSymbology resolved, string name)
         {
             int shortSide = Math.Min(modules.Width, modules.Height);
             int longSide = Math.Max(modules.Width, modules.Height);
@@ -1730,17 +1742,27 @@ namespace Letra200bSharp
             // head axis resolves at half as many dots per millimeter.
             float moduleSizeMm = dotsPerModuleShort / (FeedAxisPixelsPerMm / 2f);
 
-            return new LetraHelper.TwoDPlan(resolved, name, shortSide, longSide, dotsPerModuleShort, dotsPerModuleLong, moduleSizeMm, dotsPerModuleShort <= 1);
+            return new TwoDCodePlan
+            {
+                Symbology = resolved,
+                SymbolName = name,
+                ModulesShort = shortSide,
+                ModulesLong = longSide,
+                DotsPerModuleShort = dotsPerModuleShort,
+                DotsPerModuleLong = dotsPerModuleLong,
+                ModuleSizeMm = moduleSizeMm,
+                MayNotScanWell = dotsPerModuleShort <= 1
+            };
         }
 
         /// <summary>
         /// Encodes <paramref name="data"/> and lays it out for the printer without rendering -
-        /// see <see cref="LetraHelper.TwoDPlan"/>. Meant for UI feedback (showing the chosen
-        /// symbol and warning about <see cref="LetraHelper.TwoDPlan.MayNotScanWell"/>) before
+        /// see <see cref="TwoDCodePlan"/>. Meant for UI feedback (showing the chosen
+        /// symbol and warning about <see cref="TwoDCodePlan.MayNotScanWell"/>) before
         /// committing to a print.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
-        public LetraHelper.TwoDPlan PlanTwoDImage(string data, LetraHelper.TwoDSymbology symbology)
+        public TwoDCodePlan PlanTwoDImage(string data, TwoDSymbology symbology)
         {
             var (modules, resolved, name) = EncodeTwoD(data, symbology);
             return BuildTwoDPlan(modules, resolved, name);
@@ -1759,7 +1781,7 @@ namespace Letra200bSharp
         /// </summary>
         /// <returns>PNG-encoded bytes of the rendered symbol.</returns>
         /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
-        public byte[] RenderTwoDContentImage(string data, LetraHelper.TwoDSymbology symbology)
+        public byte[] RenderTwoDContentImage(string data, TwoDSymbology symbology)
         {
             var (modules, resolved, name) = EncodeTwoD(data, symbology);
             var plan = BuildTwoDPlan(modules, resolved, name);
@@ -1770,7 +1792,7 @@ namespace Letra200bSharp
             int dotsShort = plan.DotsPerModuleShort;
             int dotsLong = plan.DotsPerModuleLong;
 
-            int quietModules = resolved == LetraHelper.TwoDSymbology.QrCode ? 4 : 2;
+            int quietModules = resolved == TwoDSymbology.QrCode ? 4 : 2;
             int quietFeedPx = quietModules * dotsLong;
             int feedPx = longSide * dotsLong + 2 * quietFeedPx;
             int headOffset = (TwoDHeadBudgetPixels - shortSide * dotsShort) / 2;
@@ -1807,12 +1829,12 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="ILetraHelper.CreateJob(string, LetraHelper.TwoDSymbology)"/>
+        /// Renders a PNG preview of what <see cref="LetraTagLabelRenderer.Render"/>
         /// would print for the same arguments. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image.</returns>
         /// <exception cref="ArgumentException"><paramref name="data"/> can't be encoded as <paramref name="symbology"/> at a size that fits the printer.</exception>
-        public byte[] PreviewImage(string data, LetraHelper.TwoDSymbology symbology)
+        public byte[] PreviewImage(string data, TwoDSymbology symbology)
         {
             byte[] imageBytes = RenderTwoDContentImage(data, symbology);
             return PreviewImage(imageBytes, noCut: false, preRendered: true);
@@ -1857,8 +1879,8 @@ namespace Letra200bSharp
         /// self-padded (see <see cref="RenderImageContentImage"/>'s remarks). Padding the other
         /// 30-tall ones up here - rather than cropping the Image element's own padding back off -
         /// means every element in a composed strip ends up self-contained at the printer's actual
-        /// wire height, so <see cref="ILetraHelper.CreateComposedJob"/> can hand the whole thing to
-        /// <see cref="ILetraHelper.CreateJob(byte[], bool, bool)"/> as <c>noCut: true</c> (the
+        /// wire height, so <see cref="LetraTagLabelRenderer.Render"/> can hand the whole thing to
+        /// <see cref="LetraTagLabelRenderer.Render"/> as <c>noCut: true</c> (the
         /// caller has already handled the unprintable-edge padding, exactly what that flag means)
         /// instead of asking for a second, redundant round of padding on top.
         /// </summary>
@@ -1897,7 +1919,7 @@ namespace Letra200bSharp
         /// generalized to any element type. Every element is padded up to the full 32-dot head
         /// axis first (see <see cref="PadToHeadAxis"/>) so they all line up at the same height
         /// regardless of which Content method produced them. Public (rather than kept private) so
-        /// <see cref="ILetraHelper.CreateComposedJob"/> can build a job from it.
+        /// <see cref="LetraTagLabelRenderer.Render"/> can build a job from it.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="elementPngs"/> is empty, isn't decodable, or isn't a shape <see cref="PadToHeadAxis"/> accepts.</exception>
         public SKBitmap ComposeElementImages(IReadOnlyList<byte[]> elementPngs)
@@ -1945,7 +1967,7 @@ namespace Letra200bSharp
         }
 
         /// <summary>
-        /// Renders a PNG preview of what <see cref="ILetraHelper.CreateComposedJob"/> would print
+        /// Renders a PNG preview of what <see cref="LetraTagLabelRenderer.Render"/> would print
         /// for the same elements. See <see cref="PreviewImage(byte[], bool, bool)"/>.
         /// </summary>
         /// <returns>PNG-encoded bytes of the preview image.</returns>
