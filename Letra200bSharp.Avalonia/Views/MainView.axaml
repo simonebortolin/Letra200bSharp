@@ -66,8 +66,17 @@
                     <TabItem Header="{x:Static res:Strings.MainView_BarcodeTabHeader}">
                         <views:BarcodeTabView DataContext="{Binding Barcode}" />
                     </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_QrTabHeader}">
+                        <views:QrTabView DataContext="{Binding Qr}" />
+                    </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_DrawTabHeader}">
+                        <views:DrawTabView DataContext="{Binding Draw}" />
+                    </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_DinRailTabHeader}">
                         <views:DinRailTabView DataContext="{Binding DinRail}" />
+                    </TabItem>
+                    <TabItem Header="{x:Static res:Strings.MainView_ComposeTabHeader}">
+                        <views:ComposeTabView DataContext="{Binding Compose}" />
                     </TabItem>
                     <TabItem Header="{x:Static res:Strings.MainView_HistoryTabHeader}">
                         <views:HistoryTabView DataContext="{Binding History}" />
