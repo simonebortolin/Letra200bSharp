@@ -142,6 +142,16 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             Devices.Clear();
+
+            // With the radio off (or no adapter at all) a scan either just comes back empty -
+            // indistinguishable from "printer not nearby" - or, on Windows, throws a bare
+            // "Element not found", so check up front and say what's actually wrong.
+            if (!await Bluetooth.GetAvailabilityAsync())
+            {
+                ReportStatus(Strings.MainView_BluetoothUnavailable, true);
+                return;
+            }
+
             var devices = await LetraPrinter.ScanForDevicesAsync();
             foreach (var device in devices)
             {
@@ -158,7 +168,18 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            ReportStatus(ex.Message, true);
+            // The radio may have been switched off mid-scan - same story as above.
+            bool available;
+            try
+            {
+                available = await Bluetooth.GetAvailabilityAsync();
+            }
+            catch
+            {
+                available = false;
+            }
+
+            ReportStatus(available ? ex.Message : Strings.MainView_BluetoothUnavailable, true);
         }
         finally
         {

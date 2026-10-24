@@ -217,6 +217,9 @@
   <data name="MainView_NoPrinterFound" xml:space="preserve">
     <value>Dymo LetraTag 200B not found.</value>
   </data>
+  <data name="MainView_BluetoothUnavailable" xml:space="preserve">
+    <value>Bluetooth is turned off or no Bluetooth adapter was found. Turn Bluetooth on and refresh.</value>
+  </data>
 
   <data name="Status_SavedToHistory" xml:space="preserve">
     <value>Saved to history.</value>

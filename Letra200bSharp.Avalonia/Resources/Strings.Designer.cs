@@ -763,6 +763,15 @@ namespace Letra200bSharp.Avalonia.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Bluetooth is turned off or no Bluetooth adapter was found. Turn Bluetooth on and refresh..
+        /// </summary>
+        public static string MainView_BluetoothUnavailable {
+            get {
+                return ResourceManager.GetString("MainView_BluetoothUnavailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Dymo LetraTag 200B not found..
         /// </summary>
         public static string MainView_NoPrinterFound {
