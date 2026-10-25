@@ -73,7 +73,7 @@ jobs:
             echo "tag_exists=true" >> "$GITHUB_OUTPUT"
             if [ -n "$PR_NUMBER" ]; then
               # Merging as-is wouldn't publish anything - say so while it's still cheap to fix.
-              echo "::warning file=BuildVersion.props::v$PREFIX is already released - bump <VersionPrefix> before merging, or main won't publish a new release."
+              echo "::warning file=BuildVersion.props::v$PREFIX is already released - bump <VersionPrefix> before merging, or main won't publish a new release (add [no-new-version] to the commit message if that is intended)."
             else
               echo "::notice::Tag v$PREFIX already present - skip"
             fi
@@ -450,14 +450,20 @@ jobs:
           generate_release_notes: true
           files: release/*
 
+      # A push that does not release on purpose (build, CI or docs changes) carries
+      # [no-new-version] in a commit message: report success instead of a pending status.
       - name: Report release status
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MESSAGES: ${{ join(github.event.commits.*.message, ' ') }}
         run: |
-          if [ "${{ needs.version.outputs.tag_exists }}" = "true" ]; then
+          if [ "${{ needs.version.outputs.tag_exists }}" = "true" ] && printf '%s' "$COMMIT_MESSAGES" | grep -qF '[no-new-version]'; then
+            STATE=success
+            DESCRIPTION="Version v$VERSION kept on purpose ([no-new-version]) — nothing to release."
+          elif [ "${{ needs.version.outputs.tag_exists }}" = "true" ]; then
             STATE=pending
-            DESCRIPTION="Version v$VERSION already released — bump <VersionPrefix> in BuildVersion.props."
+            DESCRIPTION="Version v$VERSION already released — bump <VersionPrefix> in BuildVersion.props, or add [no-new-version] to the commit message."
           elif [ "${{ steps.gh_release.outcome }}" = "success" ]; then
             STATE=success
             DESCRIPTION="Released v$VERSION with Windows, Linux and Android artifacts."
