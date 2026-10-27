@@ -7,8 +7,7 @@ namespace Letra200bSharp.Avalonia.Services;
 /// One reusable hand-drawn symbol saved from the Draw tab - <see cref="PixelPng"/> is a
 /// pixel-exact, 1-bit-per-pixel PNG already sized to the printer's head axis (30 rows) with the
 /// blank columns on each side trimmed off, so it's directly usable with
-/// <see cref="Letra200bSharp.LetraHelper.CreateJob(byte[], bool, bool)"/>'s <c>preRendered</c>
-/// path - no re-encoding needed to print or reload it.
+/// an <see cref="ImageLabel"/> with <see cref="ImageLabel.PreRendered"/> - no re-encoding needed to print or reload it.
 /// </summary>
 public sealed record SavedSymbol(Guid Id, string Name, DateTimeOffset Timestamp, int WidthDots, byte[] PixelPng);
 

@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Letra200bSharp.Resources {
+namespace Letra200bSharp.LetraTag200b.Resources {
     using System;
     
     
@@ -22,7 +22,7 @@ namespace Letra200bSharp.Resources {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class Strings {
+    internal class Strings {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -36,10 +36,10 @@ namespace Letra200bSharp.Resources {
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        public static global::System.Resources.ResourceManager ResourceManager {
+        internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Letra200bSharp.Resources.Strings", typeof(Strings).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Letra200bSharp.LetraTag200b.Resources.Strings", typeof(Strings).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -51,7 +51,7 @@ namespace Letra200bSharp.Resources {
         ///   resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        public static global::System.Globalization.CultureInfo Culture {
+        internal static global::System.Globalization.CultureInfo Culture {
             get {
                 return resourceCulture;
             }
@@ -63,7 +63,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing was cancelled..
         /// </summary>
-        public static string PrintResult_StatusCancelled {
+        internal static string PrintResult_StatusCancelled {
             get {
                 return ResourceManager.GetString("PrintResult_StatusCancelled", resourceCulture);
             }
@@ -72,7 +72,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing completed..
         /// </summary>
-        public static string PrintResult_StatusCompleted {
+        internal static string PrintResult_StatusCompleted {
             get {
                 return ResourceManager.GetString("PrintResult_StatusCompleted", resourceCulture);
             }
@@ -81,7 +81,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing completed (the printer can report this even when it didn&apos;t actually print, e.g. lid open or no cassette)..
         /// </summary>
-        public static string PrintResult_StatusCompletedMaybe {
+        internal static string PrintResult_StatusCompletedMaybe {
             get {
                 return ResourceManager.GetString("PrintResult_StatusCompletedMaybe", resourceCulture);
             }
@@ -90,7 +90,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing completed, but the battery is low - it may not print again with the same batteries..
         /// </summary>
-        public static string PrintResult_StatusLowBatteryCompleted {
+        internal static string PrintResult_StatusLowBatteryCompleted {
             get {
                 return ResourceManager.GetString("PrintResult_StatusLowBatteryCompleted", resourceCulture);
             }
@@ -99,7 +99,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing failed because the battery is low..
         /// </summary>
-        public static string PrintResult_StatusLowBatteryFailed {
+        internal static string PrintResult_StatusLowBatteryFailed {
             get {
                 return ResourceManager.GetString("PrintResult_StatusLowBatteryFailed", resourceCulture);
             }
@@ -108,7 +108,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing failed because no cassette was inserted..
         /// </summary>
-        public static string PrintResult_StatusNoCassette {
+        internal static string PrintResult_StatusNoCassette {
             get {
                 return ResourceManager.GetString("PrintResult_StatusNoCassette", resourceCulture);
             }
@@ -117,7 +117,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing failed for an unknown reason..
         /// </summary>
-        public static string PrintResult_StatusUnknownFailure {
+        internal static string PrintResult_StatusUnknownFailure {
             get {
                 return ResourceManager.GetString("PrintResult_StatusUnknownFailure", resourceCulture);
             }
@@ -126,7 +126,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to Printing failed with an unrecognized status code ({0})..
         /// </summary>
-        public static string PrintResult_StatusUnrecognized {
+        internal static string PrintResult_StatusUnrecognized {
             get {
                 return ResourceManager.GetString("PrintResult_StatusUnrecognized", resourceCulture);
             }
@@ -135,7 +135,7 @@ namespace Letra200bSharp.Resources {
         /// <summary>
         ///   Looks up a localized string similar to The printer didn&apos;t report a result within the timeout - the label may or may not have printed..
         /// </summary>
-        public static string PrintResult_Timeout {
+        internal static string PrintResult_Timeout {
             get {
                 return ResourceManager.GetString("PrintResult_Timeout", resourceCulture);
             }

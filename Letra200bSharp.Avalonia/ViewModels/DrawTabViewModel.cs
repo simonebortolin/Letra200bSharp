@@ -5,7 +5,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -23,8 +22,8 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 /// <remarks>
 /// The canvas model (<see cref="_pixels"/>) is always exactly <see cref="CanvasHeightDots"/> rows
 /// - the printer's printable head axis - by <see cref="CanvasWidthDots"/> columns (the feed
-/// axis, resizable), so it's already what <see cref="ILetraHelper.CreateJob(byte[], bool, bool)"/>'s
-/// <c>preRendered</c> path expects: no rotation or rescale needed anywhere in this class, just a
+/// axis, resizable), so it's already what an <see cref="ImageLabel"/> with
+/// <see cref="ImageLabel.PreRendered"/> expects: no rotation or rescale needed anywhere in this class, just a
 /// 1-bit-per-pixel PNG encode. <see cref="CanvasBitmap"/> is a separate, purely cosmetic
 /// <see cref="WriteableBitmap"/> - the same model redrawn at <see cref="Zoom"/>/<see cref="HorizontalZoom"/>
 /// screen pixels per dot (non-uniform - see <see cref="RebuildCanvasBitmap"/> for why) so editing
@@ -43,14 +42,13 @@ public partial class DrawTabViewModel : ViewModelBase
     /// <summary>How many previous strokes <see cref="Undo"/> can step back through.</summary>
     private const int MaxUndoDepth = 30;
 
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly SymbolLibraryService _symbolLibrary;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
     /// <summary>[y, x] - true is a printed (black) dot. Always <see cref="CanvasHeightDots"/> rows by <see cref="CanvasWidthDots"/> columns.</summary>
     private bool[,] _pixels = new bool[CanvasHeightDots, DefaultCanvasWidthDots];
@@ -110,7 +108,7 @@ public partial class DrawTabViewModel : ViewModelBase
     /// <summary>
     /// Screen pixels for one feed-axis (horizontal) printer dot - always half <see cref="Zoom"/>,
     /// since a feed-axis dot is physically half the size of a head-axis one (see
-    /// <c>LetraHelper.FeedAxisPixelsPerMm</c>'s remarks). The correction lands here rather than by
+    /// <c>FeedAxisPixelsPerMm</c>'s remarks). The correction lands here rather than by
     /// inflating <see cref="Zoom"/>: the head axis is a fixed 30 dots, so keeping it in direct
     /// control of canvas height keeps that height exactly what it was before this 2:1 fix: the
     /// (already resizable, already-scrolling) feed axis is what narrows instead. Without this
@@ -146,15 +144,14 @@ public partial class DrawTabViewModel : ViewModelBase
 
     private DrawTool CurrentTool => Enum.Parse<DrawTool>(SelectedTool);
 
-    public DrawTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, SymbolLibraryService symbolLibrary, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public DrawTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, SymbolLibraryService symbolLibrary, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _symbolLibrary = symbolLibrary;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
 
         Symbols.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSymbols));
@@ -397,7 +394,7 @@ public partial class DrawTabViewModel : ViewModelBase
     /// Redraws <see cref="CanvasBitmap"/> from <see cref="_pixels"/>, nearest-neighbor, at
     /// <see cref="HorizontalZoom"/> screen pixels per feed-axis (horizontal) dot and
     /// <see cref="Zoom"/> per head-axis (vertical) dot - deliberately <em>not</em> a uniform
-    /// block like <see cref="IRenderHelper.PreviewImage(byte[], bool, bool)"/>'s upscale, because on
+    /// block like <see cref="ILabelRenderer.RenderPreview"/>'s upscale, because on
     /// the printer itself those two axes aren't the same physical size: a shape that looks square
     /// here has to actually be twice as wide (in dots) as it is tall to print square (see
     /// <see cref="HorizontalZoom"/>) - this is what makes the live canvas WYSIWYG against the
@@ -476,7 +473,7 @@ public partial class DrawTabViewModel : ViewModelBase
         return false;
     }
 
-    /// <summary>Encodes <paramref name="pixels"/> as a pixel-exact, 1-bit-per-pixel PNG - the print-ready form handed to <see cref="LetraHelper"/> and to <see cref="SymbolLibraryService"/>.</summary>
+    /// <summary>Encodes <paramref name="pixels"/> as a pixel-exact, 1-bit-per-pixel PNG - the print-ready form handed to the printer and to <see cref="SymbolLibraryService"/>.</summary>
     private static byte[] EncodePixelsPng(bool[,] pixels)
     {
         int height = pixels.GetLength(0);
@@ -535,12 +532,13 @@ public partial class DrawTabViewModel : ViewModelBase
     private async Task PreviewAsync()
     {
         var modelPng = EncodePixelsPng(_pixels);
+        var printer = _getSelectedDevice();
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(modelPng, noCut: false, preRendered: true);
+                var previewBytes = _printing.RenderPreview(DrawingLabel(modelPng), printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -580,8 +578,7 @@ public partial class DrawTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(modelPng, noCut: false, preRendered: true));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, DrawingLabel(modelPng));
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -633,9 +630,12 @@ public partial class DrawTabViewModel : ViewModelBase
         }
     }
 
+    /// <summary>A canvas (or library symbol) as a label: already print-sized, at the printable head height.</summary>
+    private static ImageLabel DrawingLabel(byte[] png) => new(png) { PreRendered = true };
+
     private void RecordHistory(byte[] modelPng, bool printed)
     {
-        var thumbnail = _render.PreviewImage(modelPng, noCut: false, preRendered: true);
+        var thumbnail = _printing.RenderPreview(DrawingLabel(modelPng), _getSelectedDevice());
         var parameters = new DrawHistoryParams(modelPng, CanvasWidthDots);
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Draw, Strings.DrawTab_DefaultHistoryLabel, thumbnail, DrawParams: parameters, Printed: printed));
     }
@@ -703,8 +703,7 @@ public partial class DrawTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(symbol.PixelPng, noCut: false, preRendered: true));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, DrawingLabel(symbol.PixelPng));
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
         }

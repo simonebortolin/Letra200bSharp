@@ -3,7 +3,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -14,20 +13,19 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 /// Concatenates several already-configured elements - added here from Text/Barcode/2D
 /// Code/Draw/Image's own "Concatenate" command, not composed from scratch in this tab - into one
 /// continuous printed strip along the feed axis, the same idea DIN Rail already uses for text
-/// segments, generalized to any element type (see <see cref="ILetraHelper.CreateComposedJob"/>).
+/// segments, generalized to any element type (see <see cref="ComposedLabel"/>).
 /// The staging list itself lives in <see cref="CompositionService"/>, not here or in
 /// <see cref="Services.PrintHistoryService"/> - a separate, ordered, print-order list. DIN Rail
 /// itself is deliberately not composable (it's already its own multi-segment strip).
 /// </summary>
 public partial class ComposeTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
     /// <summary>Bumped on every preview request, so a slower, older render finishing late never overwrites a newer one.</summary>
     private int _previewVersion;
@@ -47,14 +45,13 @@ public partial class ComposeTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsPreviewLoading { get; set; }
 
-    public ComposeTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public ComposeTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
 
         Elements.CollectionChanged += (_, _) =>
@@ -112,7 +109,7 @@ public partial class ComposeTabViewModel : ViewModelBase
                 Guid.NewGuid(),
                 Enum.Parse<ComposeElementKind>(ep.Kind),
                 ep.Summary,
-                _composition.RenderThumbnail(_composition.RenderElementImage(ep.TextParams, ep.BarcodeParams, ep.QrParams, ep.DrawParams, ep.ImageParams)),
+                _composition.RenderThumbnail(CompositionService.ToLabel(ep.TextParams, ep.BarcodeParams, ep.QrParams, ep.DrawParams, ep.ImageParams)),
                 ep.TextParams,
                 ep.BarcodeParams,
                 ep.QrParams,
@@ -128,8 +125,8 @@ public partial class ComposeTabViewModel : ViewModelBase
         _composition.SetAll(elements);
     }
 
-    private byte[][] RenderAllElements(IReadOnlyList<ComposeElement> elements) =>
-        elements.Select(_composition.RenderElementImage).ToArray();
+    private static ComposedLabel BuildLabel(IReadOnlyList<ComposeElement> elements) =>
+        new(elements.Select(CompositionService.ToLabel).ToList());
 
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task PreviewAsync()
@@ -145,14 +142,15 @@ public partial class ComposeTabViewModel : ViewModelBase
             return;
         }
 
-        var elements = Elements.ToList();
+        var label = BuildLabel(Elements.ToList());
+        var printer = _getSelectedDevice();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewComposedImage(RenderAllElements(elements));
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -204,9 +202,7 @@ public partial class ComposeTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var elementPngs = await Task.Run(() => RenderAllElements(elements));
-            var job = await Task.Run(() => _letra.CreateComposedJob(elementPngs));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, BuildLabel(elements));
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -214,7 +210,7 @@ public partial class ComposeTabViewModel : ViewModelBase
             {
                 try
                 {
-                    RecordHistory(elements, elementPngs, printed: true);
+                    RecordHistory(elements, printed: true);
                 }
                 catch
                 {
@@ -250,7 +246,7 @@ public partial class ComposeTabViewModel : ViewModelBase
         try
         {
             var elements = Elements.ToList();
-            RecordHistory(elements, RenderAllElements(elements), printed: false);
+            RecordHistory(elements, printed: false);
             _reportStatus(Strings.Status_SavedToHistory, false);
         }
         catch (Exception ex)
@@ -259,10 +255,9 @@ public partial class ComposeTabViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Takes the already-rendered element content so a print doesn't render everything twice.</summary>
-    private void RecordHistory(IReadOnlyList<ComposeElement> elements, IReadOnlyList<byte[]> elementPngs, bool printed)
+    private void RecordHistory(IReadOnlyList<ComposeElement> elements, bool printed)
     {
-        var thumbnail = _render.PreviewComposedImage(elementPngs);
+        var thumbnail = _printing.RenderPreview(BuildLabel(elements), _getSelectedDevice());
         var elementParams = elements
             .Select(e => new ComposeElementParams(e.Kind.ToString(), e.Summary, e.TextParams, e.BarcodeParams, e.QrParams, e.DrawParams, e.ImageParams))
             .ToList();

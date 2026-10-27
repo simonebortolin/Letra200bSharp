@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
     <!-- The release version: bump this, and merging to main tags and publishes vX.Y.Z.
-         CI passes a pre-release VersionSuffix for pull request builds (pr.12.34 -> 1.5.0-pr.12.34). -->
-    <VersionPrefix>1.5.0</VersionPrefix>
+         CI passes a pre-release VersionSuffix for pull request builds (pr.12.34 -> 2.0.0-pr.12.34). -->
+    <VersionPrefix>2.0.0</VersionPrefix>
 	<EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
