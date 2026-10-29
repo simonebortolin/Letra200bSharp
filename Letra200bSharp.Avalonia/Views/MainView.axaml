@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
              xmlns:views="using:Letra200bSharp.Avalonia.Views"
-             xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:cascadia="https://github.com/simonebortolin/CascadiaUI"
              xmlns:res="using:Letra200bSharp.Avalonia.Resources"
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
              x:Class="Letra200bSharp.Avalonia.Views.MainView"
@@ -16,16 +16,11 @@
     </Design.DataContext>
 
     <Panel>
-        <!-- SukiWindow (the desktop host - see MainWindow.axaml) draws this itself as part of
-             its chrome, but the single-view Android host has no SukiWindow around MainView at
-             all, so without hosting it here directly Android never gets SukiUI's themed
-             (light/dark-aware) background - just whatever Avalonia's default is underneath. -->
-        <suki:SukiBackground />
+        <!-- Painted here rather than left to the window, so the single-view Android host (which
+             has no CascadiaWindow around MainView) gets the same light/dark-aware background. -->
+        <Panel Background="{DynamicResource CascadiaWindowBackgroundBrush}" />
 
-        <!-- TextElement.Foreground inherits down to every plain TextBlock in this view and in
-             the tabs it hosts (see App.axaml for why that's needed), without overriding
-             controls - like Buttons - that already set their own theme-aware Foreground. -->
-        <Panel Margin="12" TextElement.Foreground="{DynamicResource AppTextBrush}">
+        <Panel Margin="12">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                     <StackPanel Grid.Column="0">
@@ -34,7 +29,7 @@
                              ImageTabView) - the BLE scan behind RefreshDevicesCommand has no
                              meaningful progress percentage, so an indeterminate spinner over
                              the list is the honest way to show "still scanning". -->
-                        <suki:BusyArea IsBusy="{Binding IsRefreshing}">
+                        <cascadia:BusyArea IsBusy="{Binding IsRefreshing}">
                             <ListBox ItemsSource="{Binding Devices}"
                                      SelectedItem="{Binding SelectedDevice}"
                                      Height="140">
@@ -44,7 +39,7 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                        </suki:BusyArea>
+                        </cascadia:BusyArea>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="8,20,0,0">
                         <Button Content="{x:Static res:Strings.MainView_RefreshButton}"
@@ -56,7 +51,7 @@
                     </StackPanel>
                 </Grid>
 
-                <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
+                <TabControl Grid.Row="1" Classes="pills" SelectedIndex="{Binding SelectedTabIndex}">
                     <TabItem Header="{x:Static res:Strings.MainView_ImageTabHeader}">
                         <views:ImageTabView DataContext="{Binding Image}" />
                     </TabItem>
@@ -87,10 +82,10 @@
                 </TabControl>
             </Grid>
 
-            <!-- Placed directly in the shared MainView (rather than MainWindow.Hosts) so status
-                 toasts (see MainViewModel.ReportStatus) work the same on both the desktop
-                 SukiWindow and the single-view Android host. -->
-            <suki:SukiToastHost Manager="{Binding ToastManager}" />
+            <!-- Placed directly in the shared MainView so status toasts (see
+                 MainViewModel.ReportStatus) work the same on both the desktop CascadiaWindow
+                 and the single-view Android host. -->
+            <cascadia:ToastHost Manager="{Binding ToastManager}" />
 
             <!-- YouTube-style "stats for nerds" overlay - raw protocol numbers for the last
                  print attempt (see MainViewModel.StatsDisplayText), toggled by the 🤓 button

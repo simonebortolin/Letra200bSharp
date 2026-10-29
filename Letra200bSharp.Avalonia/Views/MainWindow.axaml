@@ -1,14 +1,14 @@
-﻿<suki:SukiWindow xmlns="https://github.com/avaloniaui"
+﻿<cascadia:CascadiaWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:views="using:Letra200bSharp.Avalonia.Views"
-        xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+        xmlns:cascadia="https://github.com/simonebortolin/CascadiaUI"
         xmlns:res="using:Letra200bSharp.Avalonia.Resources"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Letra200bSharp.Avalonia.Views.MainWindow"
         Icon="/Assets/Icon.ico"
         Title="{x:Static res:Strings.MainWindow_Title}">
         <views:MainView />
-</suki:SukiWindow>
+</cascadia:CascadiaWindow>

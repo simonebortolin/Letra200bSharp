@@ -1,0 +1,3 @@
+[submodule "extern/CascadiaUI"]
+	path = extern/CascadiaUI
+	url = https://github.com/simonebortolin/CascadiaUI.git

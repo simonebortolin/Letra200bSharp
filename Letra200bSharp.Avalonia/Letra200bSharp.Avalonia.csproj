@@ -27,9 +27,6 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />
-    <!-- SukiUI supersedes Avalonia.Themes.Fluent (no longer needed alongside it) and brings
-         its own bundled fonts, so Avalonia.Fonts.Inter isn't needed either. -->
-    <PackageReference Include="SukiUI" />
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
@@ -39,5 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Letra200bSharp\Letra200bSharp.csproj" />
+    <!-- Avalonia Cascadia Theme (git submodule; brings Avalonia.Themes.Fluent along) -->
+    <ProjectReference Include="..\extern\CascadiaUI\src\CascadiaUI\CascadiaUI.csproj" />
   </ItemGroup>
 </Project>

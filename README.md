@@ -29,7 +29,7 @@ Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab
 - [InTheHand.BluetoothLE](https://github.com/inthehand/32feet) for cross-platform Bluetooth LE scanning and GATT communication with the printer (Windows, Linux, Android)
 - [CodeGlyphX](https://github.com/EvotecIT/CodeGlyphX) for encoding barcode data into the module pattern rendered onto the label - both 1D (Code128, Code39, Codabar, ITF, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix)
 - [Avalonia](https://avaloniaui.net/) as the cross-platform UI framework behind the desktop and Android apps
-- [SukiUI](https://github.com/kikipoulet/SukiUI) for the app's visual theme - light/dark styling, the toast notifications, and the busy/loading overlay on the label previews
+- [Avalonia Cascadia Theme](https://github.com/simonebortolin/CascadiaUI) for the app's visual theme - light/dark styling, the toast notifications, and the busy/loading overlay on the label previews
 - [CommunityToolkit.Mvvm](https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/) for MVVM boilerplate - source-generated observable properties and relay commands in the view models
 - [CommandLineParser](https://github.com/commandlineparser/commandline) for parsing arguments in the desktop app's headless CLI mode (`image`/`text`/`barcode`/`list-devices`)
 - [CsWin32](https://github.com/microsoft/cswin32) for source-generated, type-safe P/Invoke - used to reattach the CLI's output to the parent console on Windows
