@@ -16,7 +16,7 @@ C# library and mobile and desktop applications for printing images to a Dymo Let
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
 
 ## Screenshots
-Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab.
+Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab, in the Avalonia Cascadia Theme.
 
 |         | Mobile | Desktop |
 |---------|--------|---------|
