@@ -1,11 +1,11 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Letra200bSharp.Avalonia.ViewModels"
              xmlns:services="using:Letra200bSharp.Avalonia.Services"
              xmlns:conv="using:Letra200bSharp.Avalonia.Converters"
-             xmlns:suki="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+             xmlns:cascadia="https://github.com/simonebortolin/CascadiaUI"
              xmlns:res="using:Letra200bSharp.Avalonia.Resources"
              mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="640"
              x:Class="Letra200bSharp.Avalonia.Views.DrawTabView"
@@ -13,12 +13,11 @@
              x:DataType="vm:DrawTabViewModel">
     <UserControl.Styles>
         <!-- Plain Buttons (not ToggleButton/RadioButton) so a click never fights the Classes
-             binding below - see DrawTabViewModel.IsPenSelected/IsEraserSelected. A literal color
-             rather than a theme resource key, since SukiUI doesn't guarantee the Fluent accent
-             resources a plain Style would otherwise reach for. -->
+             binding below - see DrawTabViewModel.IsPenSelected/IsEraserSelected. The theme's
+             accent, so the selected tool follows the app accent colour. -->
         <Style Selector="Button.toolSelected">
-            <Setter Property="Background" Value="#4C6EF5" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource CascadiaAccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource CascadiaAccentForegroundBrush}" />
         </Style>
     </UserControl.Styles>
     <Grid RowDefinitions="*,Auto" Margin="8">
@@ -116,11 +115,11 @@
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
                      stretched; only the (possibly long) length axis scrolls. -->
                 <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">
-                    <suki:BusyArea IsBusy="{Binding IsPreviewLoading}">
+                    <cascadia:BusyArea IsBusy="{Binding IsPreviewLoading}">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                             <Image Source="{Binding PreviewBitmap}" Stretch="None" VerticalAlignment="Center" Margin="4" />
                         </ScrollViewer>
-                    </suki:BusyArea>
+                    </cascadia:BusyArea>
                 </Border>
             </StackPanel>
         </ScrollViewer>

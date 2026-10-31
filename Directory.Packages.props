@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
@@ -6,6 +6,8 @@
   <ItemGroup>
     <!-- letra200bsharp -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <!-- Keep in step with SkiaSharp: its package doesn't pull the Linux natives (see the desktop project). -->
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
     <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.45" />
     <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
          Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
@@ -14,7 +16,7 @@
 
     <!-- letra200bsharp.Avalonia -->
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />
-    <PackageVersion Include="SukiUI" Version="7.0.1" />
+    <PackageVersion Include="CascadiaUI" Version="0.1.1" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 

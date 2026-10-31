@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,9 +10,9 @@
              x:DataType="vm:AboutTabViewModel">
     <!-- Reusable look for every clickable link row (used libraries, acknowledgements, and the
          Repository/License buttons up top): a borderless, flush-left button so it reads as a
-         hyperlink rather than a UI action. Foreground is left alone - SukiUI already restyles
-         Button with its own theme-aware color (see App.axaml's remarks), so overriding it here
-         risks picking a color that doesn't track light/dark. -->
+         hyperlink rather than a UI action. Foreground is left alone - the theme already gives
+         Button a light/dark-aware color, so overriding it here risks picking one that doesn't
+         track the theme. -->
     <UserControl.Styles>
         <Style Selector="Button.Link">
             <Setter Property="Background" Value="Transparent" />
