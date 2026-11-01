@@ -12,7 +12,7 @@ C# library and mobile and desktop applications for printing images to a Dymo Let
   - Logic for resizing / converting an input image to a matrix representing the black and white pixels of the image
   - Protocol for communicating with the device
 - **Letra200bSharp.Avalonia** is a cross-platform Avalonia application with a tab each for printing an image, text, or a 1D barcode label, plus a **History** tab that keeps the last 50 successful prints (with a thumbnail) and lets you reprint a text or barcode job with one tap. Follows the system's light/dark theme and adapts its layout to the available width, from phone to desktop
-  - **Letra200bSharp.Avalonia.Desktop** is the Windows/Linux desktop app. Launched with no arguments it opens the GUI; launched with arguments it instead runs headless as a CLI, with one verb per tab - `image`, `text`, `barcode` - plus `list-devices` to scan for nearby printers (run with `--help`, or `<verb> --help`, for the full option list)
+  - **Letra200bSharp.Avalonia.Desktop** is the Windows/Linux/macOS desktop app (the macOS builds are published as `osx-arm64`/`osx-x64`, but InTheHand.BluetoothLE has no macOS backend for plain `net10.0`, so printing from macOS is untested). Launched with no arguments it opens the GUI; launched with arguments it instead runs headless as a CLI, with one verb per tab - `image`, `text`, `barcode` - plus `list-devices` to scan for nearby printers (run with `--help`, or `<verb> --help`, for the full option list)
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
 
 ## Screenshots

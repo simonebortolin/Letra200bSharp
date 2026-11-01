@@ -209,6 +209,66 @@ jobs:
           path: '*.tar.gz'
           if-no-files-found: error
 
+  # Both macOS RIDs on one Apple Silicon runner (Intel macOS runner images are retired): the
+  # apphost must be built (and ad-hoc signed) on macOS to start on Apple Silicon.
+  build-macos:
+    name: Build macOS (osx-arm64, osx-x64)
+    runs-on: macos-latest
+    needs: [version]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      VERSION_SUFFIX: ${{ needs.version.outputs.version_suffix }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'BuildVersion.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Install android workload
+        run: dotnet workload install android
+
+      - name: Publish and package desktop app
+        run: |
+          for RID in osx-arm64 osx-x64; do
+            dotnet publish "$DESKTOP_PROJECT" \
+              -c Release \
+              -f net10.0 \
+              -p:TargetFrameworks=net10.0 \
+              -r "$RID" \
+              --self-contained true \
+              -p:VersionSuffix="$VERSION_SUFFIX" \
+              -p:PublishSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:EnableCompressionInSingleFile=true \
+              -p:DebugType=embedded \
+              -p:ContinuousIntegrationBuild=true \
+              -p:EnableWindowsTargeting=true \
+              -o "artifacts/$RID"
+            chmod +x "artifacts/$RID/Letra200bSharp.Avalonia.Desktop"
+            tar -C "artifacts/$RID" -czf "Letra200bSharp-${VERSION}-${RID}.tar.gz" .
+          done
+          ls -lh Letra200bSharp-*.tar.gz
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-osx
+          path: '*.tar.gz'
+          if-no-files-found: error
+
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
@@ -289,7 +349,7 @@ jobs:
   prerelease:
     name: PR Pre-release
     runs-on: ubuntu-latest
-    needs: [version, build-windows, build-linux, build-android]
+    needs: [version, build-windows, build-linux, build-macos, build-android]
     # Same-repository PRs only. A fork's pull_request run gets a read-only token, and this
     # deliberately doesn't use pull_request_target: that would run untrusted fork code with a
     # write token. Fork PRs still build and upload workflow artifacts, just no GitHub pre-release.
@@ -395,7 +455,7 @@ jobs:
   release:
     name: Tag & Release
     runs-on: ubuntu-latest
-    needs: [version, build-windows, build-linux, build-android]
+    needs: [version, build-windows, build-linux, build-macos, build-android]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     permissions:
       contents: write
