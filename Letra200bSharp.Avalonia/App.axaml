@@ -12,8 +12,8 @@
 
     <Application.Styles>
         <!-- Avalonia Cascadia Theme (includes Fluent): follows the OS light/dark setting by
-             itself, comfortable density for touch on Android. Blue accent, as the app had
-             with SukiUI (white text on it stays at WCAG AA). -->
-        <cascadia:CascadiaTheme Accent="#0A72D1" />
+             itself, comfortable density for touch on Android. The accent is the Android splash
+             screen's blue (Resources/values/colors.xml, splash_background). -->
+        <cascadia:CascadiaTheme Accent="#0A84FF" />
     </Application.Styles>
 </Application>
