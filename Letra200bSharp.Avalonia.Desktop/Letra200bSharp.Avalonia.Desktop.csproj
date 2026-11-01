@@ -37,6 +37,12 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="CommandLineParser" />
   </ItemGroup>
+  <!-- SkiaSharp 4.x brings its Windows/macOS/Android natives along but not Linux's, so the Linux
+       build would otherwise get Avalonia.Skia's older libSkiaSharp (3.119) and fail at startup
+       with "native libSkiaSharp version incompatible". -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+  </ItemGroup>
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041'">
 
 		<PackageReference Include="Microsoft.Windows.CsWin32" />

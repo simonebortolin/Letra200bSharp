@@ -27,9 +27,8 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />
-    <!-- SukiUI supersedes Avalonia.Themes.Fluent (no longer needed alongside it) and brings
-         its own bundled fonts, so Avalonia.Fonts.Inter isn't needed either. -->
-    <PackageReference Include="SukiUI" />
+    <!-- Avalonia Cascadia Theme (brings Avalonia.Themes.Fluent along) -->
+    <PackageReference Include="CascadiaUI" />
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>

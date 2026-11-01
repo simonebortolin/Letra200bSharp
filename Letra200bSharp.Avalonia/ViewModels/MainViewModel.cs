@@ -1,12 +1,11 @@
-using System.Collections.ObjectModel;
-using Avalonia.Controls.Notifications;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
-using SukiUI.Toasts;
+using CascadiaUI.Toasts;
 
 namespace Letra200bSharp.Avalonia.ViewModels;
 
@@ -34,9 +33,9 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsRefreshing { get; set; }
 
-    /// <summary>Bound to the <c>SukiToastHost</c> in <c>MainView.axaml</c> so status messages
-    /// (see <see cref="ReportStatus"/>) show up as SukiUI toasts instead of a custom control.</summary>
-    public ISukiToastManager ToastManager { get; } = new SukiToastManager();
+    /// <summary>Bound to the <c>ToastHost</c> in <c>MainView.axaml</c> so status messages
+    /// (see <see cref="ReportStatus"/>) show up as toasts.</summary>
+    public ToastManager ToastManager { get; } = new();
 
     [ObservableProperty]
     public partial bool IsStatsPanelVisible { get; set; }
@@ -122,17 +121,16 @@ public partial class MainViewModel : ViewModelBase
         LastPrintResult = result;
     }
 
-    /// <summary>Shows <paramref name="message"/> as a SukiUI toast - errors get the Error
-    /// styling and stick around a bit longer, since those are worth a little longer to read.</summary>
+    /// <summary>Shows <paramref name="message"/> as a toast - errors get the Error styling and
+    /// stick around a bit longer, since those are worth a little longer to read. Clicking a
+    /// toast dismisses it.</summary>
     private void ReportStatus(string message, bool isError)
     {
-        ToastManager.CreateToast()
-            .WithTitle(isError ? Strings.Toast_ErrorTitle : Strings.Toast_SuccessTitle)
-            .WithContent(message)
-            .OfType(isError ? NotificationType.Error : NotificationType.Success)
-            .Dismiss().After(TimeSpan.FromSeconds(isError ? 7 : 4))
-            .Dismiss().ByClicking()
-            .Queue();
+        ToastManager.Show(
+            isError ? Strings.Toast_ErrorTitle : Strings.Toast_SuccessTitle,
+            message,
+            isError ? ToastSeverity.Error : ToastSeverity.Success,
+            TimeSpan.FromSeconds(isError ? 7 : 4));
     }
 
     [RelayCommand]
