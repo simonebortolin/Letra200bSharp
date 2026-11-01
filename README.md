@@ -13,6 +13,7 @@ C# library and mobile and desktop applications for printing images to a Dymo Let
   - Protocol for communicating with the device
 - **Letra200bSharp.Avalonia** is a cross-platform Avalonia application with a tab each for printing an image, text, or a 1D barcode label, plus a **History** tab that keeps the last 50 successful prints (with a thumbnail) and lets you reprint a text or barcode job with one tap. Follows the system's light/dark theme and adapts its layout to the available width, from phone to desktop
   - **Letra200bSharp.Avalonia.Desktop** is the Windows/Linux desktop app. Launched with no arguments it opens the GUI; launched with arguments it instead runs headless as a CLI, with one verb per tab - `image`, `text`, `barcode` - plus `list-devices` to scan for nearby printers (run with `--help`, or `<verb> --help`, for the full option list)
+  - **Letra200bSharp.Avalonia.MacCatalyst** is the macOS app (Mac Catalyst, `osx-arm64` and `osx-x64`; not built by CI or released yet, as it hasn't been tried on a Mac). It is a Mac Catalyst head rather than a `net10.0` desktop build because InTheHand.BluetoothLE only ships its CoreBluetooth backend for `maccatalyst`/`ios`; it has the GUI only, no CLI. The `.app` is ad-hoc signed, not notarized: on first launch right-click it and choose **Open** (or run `xattr -dr com.apple.quarantine LabelStudio200B.app`)
   - **Letra200bSharp.Avalonia.Android** is a Avalonia android mobile application that easily lets you select a device and an image, text or barcode label for sending to the LetraTag 200B
 
 ## Screenshots
@@ -26,7 +27,7 @@ Each row shows the phone (light/dark) and desktop (light/dark) apps for that tab
 
 ## Used libraries
 - [SkiaSharp](https://github.com/mono/SkiaSharp) for all image processing - resizing/thresholding source images, rendering text and barcodes to a bitmap, and generating the label previews
-- [InTheHand.BluetoothLE](https://github.com/inthehand/32feet) for cross-platform Bluetooth LE scanning and GATT communication with the printer (Windows, Linux, Android)
+- [InTheHand.BluetoothLE](https://github.com/inthehand/32feet) for cross-platform Bluetooth LE scanning and GATT communication with the printer (Windows, Linux, macOS, Android)
 - [CodeGlyphX](https://github.com/EvotecIT/CodeGlyphX) for encoding barcode data into the module pattern rendered onto the label - both 1D (Code128, Code39, Codabar, ITF, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix)
 - [Avalonia](https://avaloniaui.net/) as the cross-platform UI framework behind the desktop and Android apps
 - [SukiUI](https://github.com/kikipoulet/SukiUI) for the app's visual theme - light/dark styling, the toast notifications, and the busy/loading overlay on the label previews

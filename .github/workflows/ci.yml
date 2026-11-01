@@ -209,6 +209,73 @@ jobs:
           path: '*.tar.gz'
           if-no-files-found: error
 
+  # macOS ships as a Mac Catalyst app, not a plain net10.0 desktop build: InTheHand.BluetoothLE
+  # only has its CoreBluetooth backend for maccatalyst (plain net10.0 means BlueZ, Linux-only).
+  # Both architectures on one Apple Silicon runner (Intel macOS runner images are retired);
+  # the .app is ad-hoc signed, which is enough for it to start on Apple Silicon.
+  #
+  # Disabled for now: there is no Mac to try the app on yet. To turn it back on, drop the
+  # `if:` below and add build-macos back to the `needs:` of prerelease and release.
+  build-macos:
+    name: Build macOS (osx-arm64, osx-x64)
+    if: ${{ false }}
+    runs-on: macos-26
+    needs: [version]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      VERSION_SUFFIX: ${{ needs.version.outputs.version_suffix }}
+      MACCATALYST_PROJECT: Letra200bSharp.Avalonia.MacCatalyst/Letra200bSharp.Avalonia.MacCatalyst.csproj
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'BuildVersion.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # android: the shared Letra200bSharp library also targets net10.0-android.
+      - name: Install maccatalyst and android workloads
+        run: dotnet workload install maccatalyst android
+
+      - name: Publish and package Mac Catalyst app
+        run: |
+          for ARCH in arm64 x64; do
+            dotnet publish "$MACCATALYST_PROJECT" \
+              -c Release \
+              -f net10.0-maccatalyst \
+              -r "maccatalyst-$ARCH" \
+              -p:VersionSuffix="$VERSION_SUFFIX" \
+              -p:ContinuousIntegrationBuild=true
+            APP=$(find Letra200bSharp.Avalonia.MacCatalyst/bin/Release/net10.0-maccatalyst/maccatalyst-$ARCH \
+                    -maxdepth 1 -name '*.app' -type d | head -n1)
+            if [ -z "$APP" ]; then
+              echo "::error::No .app produced for maccatalyst-$ARCH"
+              exit 1
+            fi
+            codesign --verify --verbose "$APP"
+            # ditto keeps the bundle's symlinks, extended attributes and signature intact.
+            ditto -c -k --keepParent "$APP" "Letra200bSharp-${VERSION}-osx-${ARCH}.zip"
+          done
+          ls -lh Letra200bSharp-*.zip
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-osx
+          path: '*.zip'
+          if-no-files-found: error
+
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest

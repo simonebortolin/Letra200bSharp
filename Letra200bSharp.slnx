@@ -33,6 +33,9 @@
     <Deploy Solution="*|Any CPU" />
   </Project>
   <Project Path="Letra200bSharp.Avalonia.Desktop/Letra200bSharp.Avalonia.Desktop.csproj" />
+  <Project Path="Letra200bSharp.Avalonia.MacCatalyst/Letra200bSharp.Avalonia.MacCatalyst.csproj">
+    <Deploy Solution="*|Any CPU" />
+  </Project>
   <Project Path="Letra200bSharp.Avalonia/Letra200bSharp.Avalonia.csproj" />
   <Project Path="Letra200bSharp/Letra200bSharp.csproj" />
 </Solution>
