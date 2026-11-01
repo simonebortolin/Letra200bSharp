@@ -5,11 +5,11 @@
 
   <ItemGroup>
     <!-- letra200bsharp -->
-    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp" Version="4.154.0" />
     <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.45" />
     <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
          Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly. -->
-    <PackageVersion Include="Tmds.DBus" Version="0.95.1" />
+    <PackageVersion Include="Tmds.DBus" Version="0.95.2" />
     <PackageVersion Include="CodeGlyphX" Version="2.1.0" />
 
     <!-- letra200bsharp.Avalonia -->
@@ -24,7 +24,7 @@
     <!-- AndroidX Core 1.19 (pulled in by SplashScreen via AppCompatResources) merged the
          core-ktx classes into core; an older transitive Core.Core.Ktx (from Avalonia.Android)
          then duplicates them and D8 fails. Pin core-ktx to the matching 1.19 stub. -->
-    <PackageVersion Include="Xamarin.AndroidX.Core.Core.Ktx" Version="1.19.0.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.Core.Ktx" Version="1.19.1" />
 
     <!-- letra200bsharp.Avalonia.Desktop -->
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
