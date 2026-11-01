@@ -48,13 +48,14 @@ public partial class AboutTabViewModel : ViewModelBase
             new("SkiaSharp", "https://github.com/mono/SkiaSharp", "Image processing - resizing/thresholding source images, rendering text and barcodes, generating label previews"),
             new("InTheHand.BluetoothLE", "https://github.com/inthehand/32feet", "Cross-platform Bluetooth LE scanning and GATT communication with the printer"),
             new("CodeGlyphX", "https://github.com/EvotecIT/CodeGlyphX", "Encoding 1D (Code128, Code39, EAN/UPC, ...) and 2D (QR, Micro QR, rMQR, Data Matrix) barcode data into the module pattern printed on the label"),
-            new("Avalonia", "https://avaloniaui.net/", "Cross-platform UI framework behind the desktop and Android apps"),
+            new("Avalonia", "https://avaloniaui.net/", "Cross-platform UI framework behind the desktop, macOS and Android apps"),
             new("SukiUI", "https://github.com/kikipoulet/SukiUI", "The app's visual theme - light/dark styling, toast notifications, busy overlays"),
             new("CommunityToolkit.Mvvm", "https://learn.microsoft.com/en-gb/dotnet/communitytoolkit/", "MVVM boilerplate - source-generated observable properties and relay commands"),
         };
 
-        // Only the Android head lacks a CLI entirely - both desktop TFMs (Windows and Linux) build it in.
-        if (!OperatingSystem.IsAndroid())
+        // Only the Android and Mac Catalyst (macOS) heads lack a CLI entirely - both desktop
+        // TFMs (Windows and Linux) build it in. IsIOS() is also true on Mac Catalyst.
+        if (!OperatingSystem.IsAndroid() && !OperatingSystem.IsIOS())
         {
             libraries.Add(new("CommandLineParser", "https://github.com/commandlineparser/commandline", "Parsing arguments in the desktop app's headless CLI mode"));
         }

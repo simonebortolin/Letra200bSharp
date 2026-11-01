@@ -26,6 +26,9 @@
          then duplicates them and D8 fails. Pin core-ktx to the matching 1.19 stub. -->
     <PackageVersion Include="Xamarin.AndroidX.Core.Core.Ktx" Version="1.19.1" />
 
+    <!-- letra200bsharp.Avalonia.MacCatalyst -->
+    <PackageVersion Include="Avalonia.iOS" Version="$(AvaloniaVersion)" />
+
     <!-- letra200bsharp.Avalonia.Desktop -->
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="CommandLineParser" Version="2.9.1" />

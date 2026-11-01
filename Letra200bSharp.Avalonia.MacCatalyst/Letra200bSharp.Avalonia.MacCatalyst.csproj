@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- macOS head. Mac Catalyst rather than a plain net10.0 desktop build because
+       InTheHand.BluetoothLE only ships its CoreBluetooth backend for maccatalyst/ios: on
+       plain net10.0 it falls back to BlueZ (Linux only), so a net10.0 macOS build could
+       never scan for or print to the LetraTag. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-maccatalyst</TargetFramework>
+    <!-- Mac Catalyst 15.0 = macOS 12 Monterey. -->
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationId>com.Letra200bSharp.Avalonia</ApplicationId>
+    <ApplicationTitle>Label Studio 200B</ApplicationTitle>
+    <!-- Names the bundle (LabelStudio200B.app); the namespace stays Letra200bSharp.*. -->
+    <AssemblyName>LabelStudio200B</AssemblyName>
+    <ApplicationVersion>$(VersionPrefix)</ApplicationVersion>
+    <ApplicationDisplayVersion>$(VersionPrefix)</ApplicationDisplayVersion>
+    <Product>Label Studio 200B</Product>
+    <AssemblyTitle>Label Studio 200B</AssemblyTitle>
+    <!-- Distributed as a plain .app outside the App Store: no installer package and an
+         ad-hoc signature (enough for Apple Silicon to run it; no Developer ID needed). -->
+    <CreatePackage>false</CreatePackage>
+    <EnableCodeSigning>true</EnableCodeSigning>
+    <CodesignKey>-</CodesignKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.iOS" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Letra200bSharp.Avalonia\Letra200bSharp.Avalonia.csproj" />
+  </ItemGroup>
+</Project>
