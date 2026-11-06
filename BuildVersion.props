@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!-- The release version: bump this, and merging to main tags and publishes vX.Y.Z.
          CI passes a pre-release VersionSuffix for pull request builds (pr.12.34 -> 1.6.0-pr.12.34). -->
-    <VersionPrefix>1.6.0</VersionPrefix>
+    <VersionPrefix>1.6.1</VersionPrefix>
 	<EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
