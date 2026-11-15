@@ -155,7 +155,7 @@ jobs:
         if: >-
           always() && hashFiles('TestResults/*.trx') != '' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: NasAmin/trx-parser@v0.8.1
+        uses: NasAmin/trx-parser@c720607ac80bcd6124fcb482e96e0bfe159f5b2f # v0.8.1
         with:
           TRX_PATH: ${{ github.workspace }}/TestResults
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
