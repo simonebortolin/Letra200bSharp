@@ -1647,7 +1647,7 @@ namespace Letra200bSharp.LetraTag200b
             BitMatrix matrix;
             try
             {
-                matrix = DataMatrixCode.Encode(data, new DataMatrixEncodingOptions { Shape = DataMatrixShape.Square });
+                matrix = DataMatrixCode.Encode(data, new DataMatrixEncodingOptions { Shape = DataMatrixShape.Square }).Modules;
             }
             catch (Exception ex)
             {
