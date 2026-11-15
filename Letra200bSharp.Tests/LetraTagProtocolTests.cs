@@ -50,6 +50,17 @@ public class LetraTagProtocolTests
     }
 
     [Test]
+    public async Task Any_non_zero_dot_is_ink()
+    {
+        var dots = new byte[32];
+        dots[0] = 255;
+        dots[9] = 2;
+        var body = Body(LetraTagProtocol.Encode(new LabelBitmap(1, 32, dots)));
+
+        await Assert.That(Convert.ToHexString(body[18..22])).IsEqualTo("01020000");
+    }
+
+    [Test]
     public async Task Body_is_split_into_300_byte_chunks_and_the_last_one_carries_the_trailer()
     {
         var chunks = LetraTagProtocol.Encode(Blank(400)).Skip(1).ToList();

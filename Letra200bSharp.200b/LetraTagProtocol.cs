@@ -39,7 +39,8 @@ namespace Letra200bSharp.LetraTag200b
             byte[] packedData = new byte[(dots.Length + 7) / 8];
             for (int i = 0; i < dots.Length; i++)
             {
-                if (dots[i] == 1)
+                // Any non-zero byte is ink, as LabelBitmap's indexer reads it.
+                if (dots[i] != 0)
                 {
                     packedData[i / 8] |= (byte)(1 << (i % 8));
                 }
