@@ -1,7 +1,7 @@
-<Project>
+﻿<Project>
   <Import Project="BuildVersion.props" />
 
   <PropertyGroup>
-    <AvaloniaVersion>12.1.3</AvaloniaVersion>
+    <AvaloniaVersion>12.1.4</AvaloniaVersion>
   </PropertyGroup>
 </Project>

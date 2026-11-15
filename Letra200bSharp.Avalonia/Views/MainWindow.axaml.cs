@@ -1,8 +1,8 @@
-using SukiUI.Controls;
+﻿using CascadiaUI.Controls;
 
 namespace Letra200bSharp.Avalonia.Views;
 
-public partial class MainWindow : SukiWindow
+public partial class MainWindow : CascadiaWindow
 {
     public MainWindow()
     {
