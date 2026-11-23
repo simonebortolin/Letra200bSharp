@@ -53,7 +53,7 @@ public partial class MainView : UserControl
                 Title = "Select an image",
                 AllowMultiple = false,
                 // Every raster format SkiaSharp's SKBitmap.Decode can read (it auto-detects
-                // from content, so LetraHelper itself needs no changes for any of these).
+                // from content, so the renderer itself needs no changes for any of these).
                 FileTypeFilter = new[]
                 {
                     new FilePickerFileType("Images")

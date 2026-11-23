@@ -47,7 +47,7 @@
 
                 <Button Content="{x:Static res:Strings.ComposeTab_ClearAllButton}" Command="{Binding ClearAllCommand}" HorizontalAlignment="Left" IsEnabled="{Binding HasElements}" />
 
-                <!-- Fixed height matching LetraHelper.PreviewImage's baked-in nearest-neighbor
+                <!-- Fixed height matching the renderer's preview baked-in nearest-neighbor
                      upscale (32 * PreviewScale), so the label stays crisp instead of blurring when
                      stretched; only the (possibly long) length axis scrolls. -->
                 <Border BorderBrush="Gray" BorderThickness="1" Background="White" Height="136">

@@ -29,7 +29,7 @@ public class MainActivity : AvaloniaMainActivity
 
     /// <summary>
     /// Bluetooth LE scanning is a "dangerous" permission on Android and must be granted at
-    /// runtime, not just declared in the manifest - without this, LetraPrinter.ScanForDevicesAsync
+    /// runtime, not just declared in the manifest - without this, printer discovery (DiscoverAsync)
     /// fails with "Need android.permission.BLUETOOTH_SCAN permission ...".
     /// </summary>
     private void RequestBluetoothPermissions()

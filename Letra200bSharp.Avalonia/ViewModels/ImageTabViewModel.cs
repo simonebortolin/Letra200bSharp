@@ -1,7 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -10,13 +9,12 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class ImageTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
     /// <summary>
     /// Wired up by the view (needs a TopLevel to show a native file picker), since the
@@ -56,16 +54,18 @@ public partial class ImageTabViewModel : ViewModelBase
     /// </summary>
     public bool NoCutEnabled => PreRendered;
 
-    public ImageTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public ImageTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
     }
+
+    private static ImageLabel BuildLabel(byte[] imageBytes, bool noCut, bool preRendered) =>
+        new(imageBytes) { PreRendered = preRendered, EdgeToEdge = noCut };
 
     partial void OnPreRenderedChanged(bool value)
     {
@@ -101,15 +101,14 @@ public partial class ImageTabViewModel : ViewModelBase
             return;
         }
 
-        var imageBytes = _imageBytes;
-        var noCut = NoCut;
-        var preRendered = PreRendered;
+        var label = BuildLabel(_imageBytes, NoCut, PreRendered);
+        var printer = _getSelectedDevice();
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(imageBytes, noCut, preRendered);
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -151,9 +150,7 @@ public partial class ImageTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(imageBytes, noCut, preRendered));
-
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, BuildLabel(imageBytes, noCut, preRendered));
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -208,7 +205,7 @@ public partial class ImageTabViewModel : ViewModelBase
 
     private void RecordHistory(byte[] imageBytes, bool noCut, bool preRendered, bool printed)
     {
-        var thumbnail = _render.PreviewImage(imageBytes, noCut, preRendered);
+        var thumbnail = _printing.RenderPreview(BuildLabel(imageBytes, noCut, preRendered), _getSelectedDevice());
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, thumbnail, Printed: printed));
     }
 
@@ -231,7 +228,8 @@ public partial class ImageTabViewModel : ViewModelBase
         {
             // Forced noCut:false, like every other element type, so this lines up at the same
             // height as the rest of the composition regardless of what's checked on this tab.
-            var parameters = new ImageHistoryParams(_render.RenderImageContentImage(_imageBytes, PreRendered, noCut: false));
+            var content = _printing.GetRenderer(_getSelectedDevice()).RenderContent(BuildLabel(_imageBytes, noCut: false, PreRendered));
+            var parameters = new ImageHistoryParams(content);
             _composition.Stage(ComposeElementKind.Image, ImagePath ?? Strings.ImageTab_DefaultHistoryLabel, image: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }

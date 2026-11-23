@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Driver for the Dymo LetraTag 200B: its SkiaSharp renderer, its BLE wire format and its
+       Bluetooth LE transport. Registered with services.AddLetra().AddLetraTag200b(). -->
+  <Import Project="..\build\Package.props" />
+
+  <PropertyGroup>
+    <Description>Dymo LetraTag 200B driver for Letra200bSharp: renders labels for its 32-dot head and prints them over Bluetooth LE. Register it with services.AddLetra().AddLetraTag200b().</Description>
+    <TargetFrameworks>net10.0-windows10.0.19041;net10.0-android;net10.0</TargetFrameworks>
+    <!-- A namespace segment can't start with a digit, so "200b" can't be one. -->
+    <RootNamespace>Letra200bSharp.LetraTag200b</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Self-explanatory members (constructors, interface implementations) stay undocumented. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+  </PropertyGroup>
+
+  <!-- The Android target generates a Resource designer class, public by default: this library has
+       no Android resources, so keep it out of the public API (and of PublicAPI.*.txt). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+    <AndroidResourceDesignerClassModifier>internal</AndroidResourceDesignerClassModifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Letra200bSharp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Letra200bSharp\Letra200bSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="InTheHand.BluetoothLE" />
+    <!-- InTheHand.BluetoothLE's Linux backend (Linux.Bluetooth) pulls a vulnerable
+         Tmds.DBus 0.15.0 (GHSA-xrw6-gwf8-vvr9, fixed in 0.92.0); pin it directly (version
+         centralized in Directory.Packages.props) - needs to stay a real PackageReference
+         here, not just a Directory.Packages.props entry, since only a direct reference
+         actually wins over the transitive one during version resolution. -->
+    <PackageReference Include="Tmds.DBus" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <!-- 2D symbology encoding (QR, Micro QR, rMQR, Data Matrix) plus every 1D symbology the
+         renderer exposes. Replaced ZXing.Net, which had no Micro QR / rMQR encoders and a much
+         larger footprint. CodeGlyphX is pure-managed with zero dependencies on net10.0. -->
+    <PackageReference Include="CodeGlyphX" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resources\Strings.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Strings.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+</Project>

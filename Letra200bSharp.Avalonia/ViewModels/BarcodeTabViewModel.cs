@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -12,44 +11,43 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 
 public partial class BarcodeTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
-    public ObservableCollection<string> Symbologies { get; } = new(Enum.GetNames<LetraHelper.BarcodeSymbology>());
-    public ObservableCollection<string> CaptionPositions { get; } = new(Enum.GetNames<LetraHelper.CaptionPosition>());
-    public ObservableCollection<string> CaptionSizes { get; } = new(Enum.GetNames<LetraHelper.CaptionSize>());
-    public ObservableCollection<string> CaptionAligns { get; } = new(Enum.GetNames<LetraHelper.TextAlign>());
+    public ObservableCollection<string> Symbologies { get; } = new(Enum.GetNames<BarcodeSymbology>());
+    public ObservableCollection<string> CaptionPositions { get; } = new(Enum.GetNames<CaptionPosition>());
+    public ObservableCollection<string> CaptionSizes { get; } = new(Enum.GetNames<CaptionSize>());
+    public ObservableCollection<string> CaptionAligns { get; } = new(Enum.GetNames<TextAlign>());
     public ObservableCollection<string> FontFamilies { get; }
 
     [ObservableProperty]
     public partial string Data { get; set; } = "";
 
     [ObservableProperty]
-    public partial string SelectedSymbology { get; set; } = nameof(LetraHelper.BarcodeSymbology.Auto);
+    public partial string SelectedSymbology { get; set; } = nameof(BarcodeSymbology.Auto);
 
     [ObservableProperty]
     public partial bool NoCut { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptionStyleEnabled))]
-    public partial string SelectedCaptionPosition { get; set; } = nameof(LetraHelper.CaptionPosition.None);
+    public partial string SelectedCaptionPosition { get; set; } = nameof(CaptionPosition.None);
 
     [ObservableProperty]
     public partial string? SelectedCaptionFontFamily { get; set; }
 
     [ObservableProperty]
-    public partial string SelectedCaptionSize { get; set; } = nameof(LetraHelper.CaptionSize.M);
+    public partial string SelectedCaptionSize { get; set; } = nameof(CaptionSize.M);
 
     [ObservableProperty]
-    public partial string SelectedCaptionAlign { get; set; } = nameof(LetraHelper.TextAlign.Center);
+    public partial string SelectedCaptionAlign { get; set; } = nameof(TextAlign.Center);
 
-    /// <summary>Font/size/align only mean anything once a caption position other than <see cref="LetraHelper.CaptionPosition.None"/> is picked - disables (rather than hides) those controls otherwise, same convention as e.g. TextTab's BoxStyleEnabled.</summary>
-    public bool CaptionStyleEnabled => SelectedCaptionPosition != nameof(LetraHelper.CaptionPosition.None);
+    /// <summary>Font/size/align only mean anything once a caption position other than <see cref="CaptionPosition.None"/> is picked - disables (rather than hides) those controls otherwise, same convention as e.g. TextTab's BoxStyleEnabled.</summary>
+    public bool CaptionStyleEnabled => SelectedCaptionPosition != nameof(CaptionPosition.None);
 
     [ObservableProperty]
     public partial Bitmap? PreviewBitmap { get; set; }
@@ -60,14 +58,13 @@ public partial class BarcodeTabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsPreviewLoading { get; set; }
 
-    public BarcodeTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public BarcodeTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
 
         var fontFamilies = SKFontManager.Default.FontFamilies.OrderBy(f => f).ToArray();
@@ -92,13 +89,13 @@ public partial class BarcodeTabViewModel : ViewModelBase
         Data = parameters.Data;
         SelectedSymbology = parameters.Symbology;
         NoCut = parameters.NoCut;
-        SelectedCaptionPosition = CaptionPositions.Contains(parameters.CaptionPosition) ? parameters.CaptionPosition : nameof(LetraHelper.CaptionPosition.None);
+        SelectedCaptionPosition = CaptionPositions.Contains(parameters.CaptionPosition) ? parameters.CaptionPosition : nameof(CaptionPosition.None);
         if (parameters.CaptionFontFamily != null && FontFamilies.Contains(parameters.CaptionFontFamily))
         {
             SelectedCaptionFontFamily = parameters.CaptionFontFamily;
         }
-        SelectedCaptionSize = CaptionSizes.Contains(parameters.CaptionSize) ? parameters.CaptionSize : nameof(LetraHelper.CaptionSize.M);
-        SelectedCaptionAlign = CaptionAligns.Contains(parameters.CaptionAlign) ? parameters.CaptionAlign : nameof(LetraHelper.TextAlign.Center);
+        SelectedCaptionSize = CaptionSizes.Contains(parameters.CaptionSize) ? parameters.CaptionSize : nameof(CaptionSize.M);
+        SelectedCaptionAlign = CaptionAligns.Contains(parameters.CaptionAlign) ? parameters.CaptionAlign : nameof(TextAlign.Center);
 
         PreviewCommand.Execute(null);
     }
@@ -115,14 +112,15 @@ public partial class BarcodeTabViewModel : ViewModelBase
             return;
         }
 
-        var parameters = BuildHistoryParams();
+        var label = BuildHistoryParams().ToLabel();
+        var printer = _getSelectedDevice();
 
         try
         {
             IsPreviewLoading = true;
             var bitmap = await Task.Run(() =>
             {
-                var previewBytes = _render.PreviewImage(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption());
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return new Bitmap(stream);
             });
@@ -163,8 +161,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption()));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, parameters.ToLabel());
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -219,7 +216,7 @@ public partial class BarcodeTabViewModel : ViewModelBase
 
     private void RecordHistory(BarcodeHistoryParams parameters, bool printed)
     {
-        var thumbnail = _render.PreviewImage(parameters.Data, parameters.ParsedSymbology, parameters.NoCut, parameters.ToCaption());
+        var thumbnail = _printing.RenderPreview(parameters.ToLabel(), _getSelectedDevice());
         _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Barcode, Summary(parameters), thumbnail, BarcodeParams: parameters, Printed: printed));
     }
 

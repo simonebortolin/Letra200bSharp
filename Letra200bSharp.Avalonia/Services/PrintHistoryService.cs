@@ -16,6 +16,19 @@ public enum HistoryKind
 }
 
 /// <summary>
+/// A tab's saved settings that can become one part of a Compose tab strip (see
+/// <see cref="CompositionService.ToLabel(ComposeElement)"/>).
+/// </summary>
+public interface IComposablePart
+{
+    /// <summary>
+    /// These settings as a part of a <see cref="ComposedLabel"/>, which lays every part out at the
+    /// printable head height whatever its own tab defaults to standalone, so they all line up.
+    /// </summary>
+    Label ToComposedPart();
+}
+
+/// <summary>
 /// Enough of a Text tab's state to restore it and let the user reprint - see <see cref="ViewModels.TextTabViewModel.LoadFrom"/>.
 /// <see cref="Bold"/>/<see cref="Italic"/> are independently toggleable (post-1.5); <c>Style</c>
 /// itself used to also carry "Bold"/"Italic" as mutually-exclusive values pre-1.5 - see
@@ -39,21 +52,43 @@ public sealed record TextHistoryParams(
     int FrameTop = 0,
     int FrameBottom = 0,
     int FrameLeft = 0,
-    int FrameRight = 0)
+    int FrameRight = 0) : IComposablePart
 {
-    /// <summary>A pre-1.5 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="LetraHelper.TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
+    /// <summary>A pre-1.5 entry stored Bold/Italic as <c>Style</c> values, which no longer exist on <see cref="TextStyle"/> - map them onto the new independent <see cref="Bold"/>/<see cref="Italic"/> fields instead.</summary>
     public TextHistoryParams WithLegacyStyleMigrated() => Style switch
     {
-        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
-        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        "Bold" => this with { Style = nameof(TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(TextStyle.Normal), Italic = true },
         _ => this
     };
 
-    [JsonIgnore]
-    public LetraHelper.TextFormatting Formatting => new(Bold, Italic, Underline, Strikethrough, (float)LetterSpacing);
+    /// <summary>
+    /// The label these settings describe. Mirrors <see cref="ViewModels.TextTabViewModel"/>'s
+    /// own composing of the two lines: a second line only makes sense with a size/style that
+    /// leaves room for it.
+    /// </summary>
+    public TextLabel ToLabel(bool edgeToEdge)
+    {
+        var t = WithLegacyStyleMigrated();
+        bool line2Enabled = t.Style != nameof(TextStyle.Vertical) && t.Size != nameof(LabelTextSize.L) && t.Size != nameof(LabelTextSize.XL);
+        string text = line2Enabled && !string.IsNullOrEmpty(t.Line2) ? t.Line1 + Environment.NewLine + t.Line2 : t.Line1;
+        return new TextLabel(text)
+        {
+            FontFamily = t.FontFamily ?? "Arial",
+            Size = Enum.Parse<LabelTextSize>(t.Size),
+            Style = Enum.Parse<TextStyle>(t.Style),
+            UpperCase = t.UpperCase,
+            WidthScale = (float)t.WidthScale,
+            Box = Enum.Parse<TextBoxStyle>(t.BoxStyle),
+            Align = Enum.Parse<TextAlign>(t.Align),
+            Formatting = new TextFormatting { Bold = t.Bold, Italic = t.Italic, Underline = t.Underline, Strikethrough = t.Strikethrough, LetterSpacing = (float)t.LetterSpacing },
+            FrameSpacing = new FrameSpacing { Top = t.FrameTop, Bottom = t.FrameBottom, Left = t.FrameLeft, Right = t.FrameRight },
+            EdgeToEdge = edgeToEdge
+        };
+    }
 
-    [JsonIgnore]
-    public LetraHelper.FrameSpacing FrameSpacing => new(FrameTop, FrameBottom, FrameLeft, FrameRight);
+    /// <summary>Also migrates a composition staged before independently-toggleable Bold/Italic existed - see <see cref="ToLabel"/>.</summary>
+    Label IComposablePart.ToComposedPart() => ToLabel(edgeToEdge: false);
 }
 
 /// <summary>
@@ -69,45 +104,57 @@ public sealed record BarcodeHistoryParams(
     string CaptionFontFamily = "Arial",
     string CaptionSize = "M",
     string CaptionAlign = "Center",
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ShowNumber = false) : IComposablePart
 {
     /// <summary>The old fixed "show number" caption was exactly Below / Arial / M / Center.</summary>
     public BarcodeHistoryParams WithLegacyCaptionMigrated() =>
-        ShowNumber && CaptionPosition == nameof(LetraHelper.CaptionPosition.None)
-            ? this with { CaptionPosition = nameof(LetraHelper.CaptionPosition.Below), CaptionFontFamily = "Arial", CaptionSize = nameof(LetraHelper.CaptionSize.M), CaptionAlign = nameof(LetraHelper.TextAlign.Center), ShowNumber = false }
+        ShowNumber && CaptionPosition == nameof(Letra200bSharp.CaptionPosition.None)
+            ? this with { CaptionPosition = nameof(Letra200bSharp.CaptionPosition.Below), CaptionFontFamily = "Arial", CaptionSize = nameof(Letra200bSharp.CaptionSize.M), CaptionAlign = nameof(TextAlign.Center), ShowNumber = false }
             : this;
 
     [JsonIgnore]
-    public LetraHelper.BarcodeSymbology ParsedSymbology => Enum.Parse<LetraHelper.BarcodeSymbology>(Symbology);
+    public BarcodeSymbology ParsedSymbology => Enum.Parse<BarcodeSymbology>(Symbology);
 
-    public LetraHelper.CaptionOptions ToCaption() => new(
-        Enum.Parse<LetraHelper.CaptionPosition>(CaptionPosition),
-        CaptionFontFamily,
-        Enum.Parse<LetraHelper.CaptionSize>(CaptionSize),
-        Enum.Parse<LetraHelper.TextAlign>(CaptionAlign));
+    public CaptionOptions ToCaption() => new()
+    {
+        Position = Enum.Parse<Letra200bSharp.CaptionPosition>(CaptionPosition),
+        FontFamily = CaptionFontFamily,
+        Size = Enum.Parse<Letra200bSharp.CaptionSize>(CaptionSize),
+        Align = Enum.Parse<TextAlign>(CaptionAlign)
+    };
+
+    /// <summary>The label these settings describe.</summary>
+    public BarcodeLabel ToLabel() => new(Data, ParsedSymbology) { Caption = ToCaption(), EdgeToEdge = NoCut };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>
 /// Enough of a 2D Code tab's state to restore it and let the user reprint - see <see cref="ViewModels.QrTabViewModel.LoadFrom"/>.
 /// <c>Symbology</c> is the tab's display label (see <see cref="SymbologyChoices"/>), not the enum name.
 /// </summary>
-public sealed record QrHistoryParams(string Data, string Symbology)
+public sealed record QrHistoryParams(string Data, string Symbology) : IComposablePart
 {
-    /// <summary>2D Code tab ComboBox label paired with the <see cref="LetraHelper.TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
-    public static readonly IReadOnlyList<(string Label, LetraHelper.TwoDSymbology Value)> SymbologyChoices = new[]
+    /// <summary>2D Code tab ComboBox label paired with the <see cref="TwoDSymbology"/> it selects - the labels are what gets persisted.</summary>
+    public static readonly IReadOnlyList<(string Label, TwoDSymbology Value)> SymbologyChoices = new[]
     {
-        ("Auto", LetraHelper.TwoDSymbology.Auto),
-        ("QR", LetraHelper.TwoDSymbology.QrCode),
-        ("Micro QR", LetraHelper.TwoDSymbology.MicroQrCode),
-        ("rMQR (rectangular)", LetraHelper.TwoDSymbology.RectangularMicroQrCode),
-        ("Data Matrix", LetraHelper.TwoDSymbology.DataMatrix),
+        ("Auto", TwoDSymbology.Auto),
+        ("QR", TwoDSymbology.QrCode),
+        ("Micro QR", TwoDSymbology.MicroQrCode),
+        ("rMQR (rectangular)", TwoDSymbology.RectangularMicroQrCode),
+        ("Data Matrix", TwoDSymbology.DataMatrix),
     };
 
-    public static LetraHelper.TwoDSymbology ParseSymbology(string label) =>
+    public static TwoDSymbology ParseSymbology(string label) =>
         SymbologyChoices.FirstOrDefault(c => c.Label == label, SymbologyChoices[0]).Value;
 
     [JsonIgnore]
-    public LetraHelper.TwoDSymbology ParsedSymbology => ParseSymbology(Symbology);
+    public TwoDSymbology ParsedSymbology => ParseSymbology(Symbology);
+
+    /// <summary>The label these settings describe.</summary>
+    public TwoDCodeLabel ToLabel() => new(Data, ParsedSymbology);
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
 }
 
 /// <summary>
@@ -116,16 +163,28 @@ public sealed record QrHistoryParams(string Data, string Symbology)
 /// is always a small, already print-sized monochrome drawing rather than an arbitrary photo, so
 /// keeping the full bytes around is cheap.
 /// </summary>
-public sealed record DrawHistoryParams(byte[] Png, int WidthDots);
+public sealed record DrawHistoryParams(byte[] Png, int WidthDots) : IComposablePart
+{
+    /// <summary>The drawing as a label - already print-sized, at the printable head height.</summary>
+    public ImageLabel ToLabel() => new(Png) { PreRendered = true };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
+}
 
 /// <summary>
 /// An Image tab element of a Compose tab strip (see <see cref="ComposeElement"/>/<see cref="ComposeElementParams"/>),
 /// kept as its already thresholded and print-sized content PNG (see
-/// <see cref="IRenderHelper.RenderImageContentImage"/>), never the source photo. That keeps
+/// <see cref="ILabelRenderer.RenderContent"/>), never the source photo. That keeps
 /// composition.json and history.json small no matter how large the original image was, and
 /// avoids re-thresholding the photo on every preview.
 /// </summary>
-public sealed record ImageHistoryParams(byte[] ContentPng);
+public sealed record ImageHistoryParams(byte[] ContentPng) : IComposablePart
+{
+    /// <summary>The stored content as a label, printed pixel-exact.</summary>
+    public ImageLabel ToLabel() => new(ContentPng) { PreRendered = true };
+
+    Label IComposablePart.ToComposedPart() => ToLabel();
+}
 
 /// <summary>One row of a DIN Rail strip - see <see cref="DinRailHistoryParams"/>.</summary>
 public sealed record DinRailRowParams(string Text, decimal Modules);
@@ -148,13 +207,13 @@ public sealed record DinRailHistoryParams(
 {
     public DinRailHistoryParams WithLegacyStyleMigrated() => Style switch
     {
-        "Bold" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Bold = true },
-        "Italic" => this with { Style = nameof(LetraHelper.TextStyle.Normal), Italic = true },
+        "Bold" => this with { Style = nameof(TextStyle.Normal), Bold = true },
+        "Italic" => this with { Style = nameof(TextStyle.Normal), Italic = true },
         _ => this
     };
 
     [JsonIgnore]
-    public LetraHelper.TextFormatting Formatting => new(Bold, Italic);
+    public TextFormatting Formatting => new() { Bold = Bold, Italic = Italic };
 }
 
 /// <summary>
@@ -178,7 +237,7 @@ public sealed record ComposeHistoryParams(IReadOnlyList<ComposeElementParams> El
 /// One past print job - or, since <see cref="Printed"/> was added, one deliberately saved design
 /// that was never (yet) sent to a printer, for a user who wants to build up a library of labels
 /// without a Dymo in reach. <see cref="ThumbnailPng"/> is the same PNG bytes
-/// <see cref="IRenderHelper.PreviewImage(byte[], bool, bool)"/> already produces for
+/// <see cref="ILabelRenderer.RenderPreview"/> already produces for
 /// the tab's live preview, so it stays tiny. Every job except Image carries enough state to be
 /// reprinted (<see cref="TextParams"/>/<see cref="BarcodeParams"/>/<see cref="QrParams"/>/<see cref="DinRailParams"/>/<see cref="DrawParams"/>/<see cref="ComposeParams"/>) -
 /// an Image job's original source bytes aren't kept around (they could be an arbitrarily large

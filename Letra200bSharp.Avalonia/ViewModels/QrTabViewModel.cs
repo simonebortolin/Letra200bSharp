@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using InTheHand.Bluetooth;
 using Letra200bSharp;
 using Letra200bSharp.Avalonia.Resources;
 using Letra200bSharp.Avalonia.Services;
@@ -12,21 +11,20 @@ namespace Letra200bSharp.Avalonia.ViewModels;
 /// <summary>
 /// Encodes text into a 2D matrix code (QR, Micro QR, rMQR or Data Matrix) and prints it. Unlike
 /// the Barcode tab, module size isn't a user choice - a matrix code's modules have to stay
-/// square, so <see cref="LetraHelper"/> picks the largest module size that fits the printer's
-/// head axis and this tab just surfaces what came out (see <see cref="LetraHelper.TwoDPlan"/>),
+/// square, so the renderer picks the largest module size that fits the printer's
+/// head axis and this tab just surfaces what came out (see <see cref="TwoDCodePlan"/>),
 /// warning via <see cref="MayNotScanWell"/> when the result would be too small to scan reliably.
 /// </summary>
 public partial class QrTabViewModel : ViewModelBase
 {
-    private readonly Func<BluetoothDevice?> _getSelectedDevice;
+    private readonly Func<PrinterInfo?> _getSelectedDevice;
     private readonly Action<string, bool> _reportStatus;
     private readonly PrintHistoryService _historyService;
     private readonly CompositionService _composition;
-    private readonly IRenderHelper _render;
-    private readonly ILetraHelper _letra;
-    private readonly Action<LetraPrintResult> _recordStats;
+    private readonly ILabelPrintingService _printing;
+    private readonly Action<PrintResult> _recordStats;
 
-    private static IReadOnlyList<(string Label, LetraHelper.TwoDSymbology Value)> SymbologyChoices => QrHistoryParams.SymbologyChoices;
+    private static IReadOnlyList<(string Label, TwoDSymbology Value)> SymbologyChoices => QrHistoryParams.SymbologyChoices;
 
     public ObservableCollection<string> Symbologies { get; } = new(SymbologyChoices.Select(c => c.Label));
 
@@ -52,23 +50,28 @@ public partial class QrTabViewModel : ViewModelBase
 
     public bool HasSymbolInfo => !string.IsNullOrEmpty(SymbolInfoText);
 
-    /// <summary>Set when the resolved symbol only gets one printer dot per module (~0.16 mm) - see <see cref="LetraHelper.TwoDPlan.MayNotScanWell"/>.</summary>
+    /// <summary>Set when the resolved symbol only gets one printer dot per module (~0.16 mm) - see <see cref="TwoDCodePlan.MayNotScanWell"/>.</summary>
     [ObservableProperty]
     public partial bool MayNotScanWell { get; set; }
 
-    public QrTabViewModel(Func<BluetoothDevice?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, IRenderHelper render, ILetraHelper letra, Action<LetraPrintResult> recordStats)
+    public QrTabViewModel(Func<PrinterInfo?> getSelectedDevice, Action<string, bool> reportStatus, PrintHistoryService historyService, CompositionService composition, ILabelPrintingService printing, Action<PrintResult> recordStats)
     {
         _getSelectedDevice = getSelectedDevice;
         _reportStatus = reportStatus;
         _historyService = historyService;
         _composition = composition;
-        _render = render;
-        _letra = letra;
+        _printing = printing;
         _recordStats = recordStats;
     }
 
-    private LetraHelper.TwoDSymbology CurrentSymbology =>
+    private TwoDSymbology CurrentSymbology =>
         QrHistoryParams.ParseSymbology(SelectedSymbology);
+
+    /// <summary>How the printer's renderer lays the code out, or <c>null</c> if it can't tell (see <see cref="ITwoDCodePlanner"/>).</summary>
+    private TwoDCodePlan? Plan(TwoDCodeLabel label, PrinterInfo? printer) =>
+        (_printing.GetRenderer(printer) as ITwoDCodePlanner)?.Plan(label);
+
+    private static string Summary(TwoDCodePlan? plan, string data) => plan == null ? data : $"{plan.SymbolName}: {data}";
 
     /// <summary>Restores a previously printed 2D code (see <see cref="Services.HistoryEntry.QrParams"/>) and refreshes the preview so the user can see what they're about to reprint.</summary>
     public void LoadFrom(QrHistoryParams parameters)
@@ -95,15 +98,16 @@ public partial class QrTabViewModel : ViewModelBase
             return;
         }
 
-        var symbology = CurrentSymbology;
+        var label = new TwoDCodeLabel(data, CurrentSymbology);
+        var printer = _getSelectedDevice();
 
         try
         {
             IsPreviewLoading = true;
             var (bitmap, plan) = await Task.Run(() =>
             {
-                var resolvedPlan = _render.PlanTwoDImage(data, symbology);
-                var previewBytes = _render.PreviewImage(data, symbology);
+                var resolvedPlan = Plan(label, printer);
+                var previewBytes = _printing.RenderPreview(label, printer);
                 using var stream = new MemoryStream(previewBytes);
                 return (new Bitmap(stream), resolvedPlan);
             });
@@ -112,8 +116,8 @@ public partial class QrTabViewModel : ViewModelBase
             PreviewBitmap = bitmap;
             previous?.Dispose();
 
-            SymbolInfoText = string.Format(Strings.QrTab_SymbolInfoFormat, plan.SymbolName, plan.DotsPerModuleShort, plan.DotsPerModuleLong, plan.ModuleSizeMm);
-            MayNotScanWell = plan.MayNotScanWell;
+            SymbolInfoText = plan == null ? "" : string.Format(Strings.QrTab_SymbolInfoFormat, plan.SymbolName, plan.DotsPerModuleShort, plan.DotsPerModuleLong, plan.ModuleSizeMm);
+            MayNotScanWell = plan?.MayNotScanWell ?? false;
         }
         catch (Exception ex)
         {
@@ -150,8 +154,7 @@ public partial class QrTabViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            var job = await Task.Run(() => _letra.CreateJob(data, symbology));
-            var result = await LetraPrinter.PrintAsync(device, job);
+            var result = await _printing.PrintAsync(device, new TwoDCodeLabel(data, symbology));
             _reportStatus(result.Message, !result.Printed);
             _recordStats(result);
 
@@ -207,11 +210,12 @@ public partial class QrTabViewModel : ViewModelBase
     /// <summary>Snapshot of the tab's current settings, taken before any <c>await</c> so history always records what was actually printed.</summary>
     private QrHistoryParams BuildHistoryParams() => new(Data, SelectedSymbology);
 
-    private void RecordHistory(QrHistoryParams parameters, LetraHelper.TwoDSymbology symbology, bool printed)
+    private void RecordHistory(QrHistoryParams parameters, TwoDSymbology symbology, bool printed)
     {
-        var thumbnail = _render.PreviewImage(parameters.Data, symbology);
-        var plan = _render.PlanTwoDImage(parameters.Data, symbology);
-        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, $"{plan.SymbolName}: {parameters.Data}", thumbnail, QrParams: parameters, Printed: printed));
+        var label = new TwoDCodeLabel(parameters.Data, symbology);
+        var printer = _getSelectedDevice();
+        var thumbnail = _printing.RenderPreview(label, printer);
+        _historyService.Add(new HistoryEntry(Guid.NewGuid(), DateTimeOffset.Now, HistoryKind.Qr2D, Summary(Plan(label, printer), parameters.Data), thumbnail, QrParams: parameters, Printed: printed));
     }
 
     /// <summary>Adds the current 2D code to the Compose tab's staging list (see <see cref="CompositionService"/>) - lets it become one part of a longer, multi-element printed strip.</summary>
@@ -228,8 +232,8 @@ public partial class QrTabViewModel : ViewModelBase
         try
         {
             var parameters = BuildHistoryParams();
-            var plan = _render.PlanTwoDImage(data, parameters.ParsedSymbology);
-            _composition.Stage(ComposeElementKind.Qr2D, $"{plan.SymbolName}: {data}", qr: parameters);
+            var plan = Plan(parameters.ToLabel(), _getSelectedDevice());
+            _composition.Stage(ComposeElementKind.Qr2D, Summary(plan, data), qr: parameters);
             _reportStatus(Strings.Status_AddedToComposition, false);
         }
         catch (Exception ex)
